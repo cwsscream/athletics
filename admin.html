@@ -77,6 +77,20 @@
 
   <!-- Firebase SDK -->
   <script type="module">
+    document.addEventListener("DOMContentLoaded", () => {
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+  const adminPanel = document.getElementById("admin-panel");
+  const mobileMessage = document.getElementById("mobile-admin-message");
+
+  if (isMobile) {
+    // Hide admin panel
+    adminPanel.classList.add("hidden");
+
+    // Show message
+    mobileMessage.classList.remove("hidden");
+  }
+});
+
     const mobileSportFilter = document.getElementById("mobile-sport-filter");
 const mobileTeamFilter = document.getElementById("mobile-team-filter");
 
@@ -528,6 +542,10 @@ function initAdminPanel() {
   <p id="login-error" class="text-red-400 mt-3 text-sm hidden text-center">
     Invalid login
   </p>
+</div>
+<div id="mobile-admin-message" class="hidden min-h-screen flex items-center justify-center bg-neutral-900 text-white p-6 text-center">
+  <h1 class="text-3xl font-bold text-red-600">Admin page not available on mobile</h1>
+  <p class="mt-4 text-gray-300">Please use a desktop to access the admin panel.</p>
 </div>
 
 <!-- ADMIN PANEL -->
