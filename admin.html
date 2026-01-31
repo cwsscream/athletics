@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/png" href="/icons/cws-logo-red.png">
+  <link rel="icon" type="image/png" href="/athletics/icons/cws-logo-red.png">
   <title>Admin Panel - Commonwealth Athletics</title>
 
   <!-- Tailwind CDN -->
@@ -521,7 +521,7 @@ function initAdminPanel() {
     onclick="googleLogin()"
     class="w-full mt-3 flex items-center justify-center gap-3 bg-white text-black py-2.5 rounded-xl font-semibold hover:bg-gray-200 text-sm sm:text-base"
   >
-    <img src="/icons/google.png" class="w-4 h-4 sm:w-5 sm:h-5">
+    <img src="/athletics/icons/google.png" class="w-4 h-4 sm:w-5 sm:h-5">
     Sign in with Google
   </button>
 
@@ -533,8 +533,6 @@ function initAdminPanel() {
 <!-- ADMIN PANEL -->
 <div id="admin-panel" class="hidden min-h-screen flex flex-col w-full">
 
-  <!-- Navbar (same as home page) -->
-  <!-- ... keep your existing navbar HTML ... -->
 <!-- Navbar (same as home page) -->
 <nav class="navbar-bg text-white sticky top-0 z-50 border-b border-neutral-800">
   <div class="navbar-overlay">
@@ -542,8 +540,8 @@ function initAdminPanel() {
       <div class="flex justify-between h-16 items-center">
 
         <!-- Logo + Text -->
-        <a href="/" class="flex items-center gap-2">
-          <img src="/icons/cws-logo-red.png" alt="Logo" class="h-10 w-10">
+        <a href="/athletics/" class="flex items-center gap-2">
+          <img src="/athletics/icons/cws-logo-red.png" alt="Logo" class="h-10 w-10">
           <span class="font-extrabold text-red-600 text-xl sm:text-2xl md:text-3xl">
   Commonwealth Athletics
 </span>
@@ -553,7 +551,7 @@ function initAdminPanel() {
 
         <!-- Desktop Menu -->
         <div class="hidden md:flex space-x-6 items-center">
-          <a href="/" class="hover:text-red-500">Home</a>
+          <a href="/athletics/" class="hover:text-red-500">Home</a>
 
           <!-- Sports Dropdown -->
           <div class="relative">
@@ -565,23 +563,23 @@ function initAdminPanel() {
   <!-- Basketball -->
   <div class="border-b border-neutral-700">
     <div class="px-4 py-2 font-bold text-gray-300">Basketball</div>
-    <a href="/sports/basketball/boys-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys Varsity</a>
-    <a href="/sports/basketball/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
-    <a href="/sports/basketball/boys-jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys JV</a>
+    <a href="/athletics/sports/basketball/boys-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys Varsity</a>
+    <a href="/athletics/sports/basketball/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+    <a href="/athletics/sports/basketball/boys-jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys JV</a>
   </div>
 
   <!-- Soccer -->
   <div class="border-b border-neutral-700">
     <div class="px-4 py-2 font-bold text-gray-300">Soccer</div>
-    <a href="/sports/soccer/boys-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys Varsity</a>
-    <a href="/sports/soccer/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
-    <a href="/sports/soccer/boys-jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys JV</a>
+    <a href="/athletics/sports/soccer/boys-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys Varsity</a>
+    <a href="/athletics/sports/soccer/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+    <a href="/athletics/sports/soccer/boys-jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys JV</a>
   </div>
 
   <!-- Fencing -->
   <div class="border-b border-neutral-700">
     <div class="px-4 py-2 font-bold text-gray-300">Fencing</div>
-    <a href="/sports/fencing/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+    <a href="/athletics/sports/fencing/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
   </div>
 
   <!-- Cross Country -->
@@ -593,22 +591,22 @@ function initAdminPanel() {
   <!-- Volleyball -->
   <div class="border-b border-neutral-700">
     <div class="px-4 py-2 font-bold text-gray-300">Volleyball</div>
-    <a href="/sports/volleyball/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+    <a href="/athletics/sports/volleyball/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
   </div>
 
   <!-- Ultimate Frisbee -->
   <div>
     <div class="px-4 py-2 font-bold text-gray-300">Ultimate Frisbee</div>
-    <a href="/sports/ultimate-frisbee/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
-    <a href="/sports/ultimate-frisbee/jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">JV</a>
+    <a href="/athletics/sports/ultimate-frisbee/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+    <a href="/athletics/sports/ultimate-frisbee/jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">JV</a>
   </div>
 
 </div>
 
           </div>
 
-          <a href="schedule.html" class="nav-link hover:text-red-500">Schedule</a>
-          <a href="/admin.html" class="nav-link hover:text-red-500">Admin</a>
+          <a href="/athletics/schedule.html" class="nav-link hover:text-red-500">Schedule</a>
+          <a href="/athletics/admin.html" class="nav-link hover:text-red-500">Admin</a>
           <button onclick="logout()" class="text-red-500 font-bold hover:text-red-400">
   Logout
 </button>
@@ -629,40 +627,40 @@ function initAdminPanel() {
 </nav>
 <div id="mobile-menu" class="hidden md:hidden bg-black border-b border-neutral-800">
   <div class="px-6 py-4 space-y-4 text-lg">
-    <a href="/" class="nav-link block hover:text-red-500">Home</a>
+    <a href="/athletics/" class="nav-link block hover:text-red-500">Home</a>
     <details class="group">
   <summary class="cursor-pointer hover:text-red-500 flex justify-between items-center">
     Sports <span class="transition-transform duration-200 group-open:rotate-180">▼</span>
   </summary>
   <div class="ml-4 mt-2 space-y-2 text-sm text-gray-300">
     <p class="font-bold">Basketball</p>
-    <a href="/sports/basketball/boys-varsity.html" class="block">Boys Varsity</a>
-    <a href="/sports/basketball/girls-varsity.html" class="block">Girls Varsity</a>
-    <a href="/sports/basketball/boys-jv.html" class="block">Boys JV</a>
+    <a href="/athletics/sports/basketball/boys-varsity.html" class="block">Boys Varsity</a>
+    <a href="/athletics/sports/basketball/girls-varsity.html" class="block">Girls Varsity</a>
+    <a href="/athletics/sports/basketball/boys-jv.html" class="block">Boys JV</a>
 
     <p class="font-bold mt-3">Soccer</p>
-    <a href="/sports/soccer/boys-varsity.html" class="block">Boys Varsity</a>
-    <a href="/sports/soccer/girls-varsity.html" class="block">Girls Varsity</a>
-    <a href="/sports/soccer/boys-jv.html" class="block">Boys JV</a>
+    <a href="/athletics/sports/soccer/boys-varsity.html" class="block">Boys Varsity</a>
+    <a href="/athletics/sports/soccer/girls-varsity.html" class="block">Girls Varsity</a>
+    <a href="/athletics/sports/soccer/boys-jv.html" class="block">Boys JV</a>
 
     <p class="font-bold mt-3">Fencing</p>
-    <a href="/sports/fencing/varsity.html" class="block">Varsity</a>
+    <a href="/athletics/sports/fencing/varsity.html" class="block">Varsity</a>
 
     <p class="font-bold mt-3">Cross Country</p>
-    <a href="/sports/cross-country/varsity.html" class="block">Varsity</a>
+    <a href="/athletics/sports/cross-country/varsity.html" class="block">Varsity</a>
 
     <p class="font-bold mt-3">Volleyball</p>
-    <a href="/sports/volleyball/girls-varsity.html" class="block">Girls Varsity</a>
+    <a href="/athletics/sports/volleyball/girls-varsity.html" class="block">Girls Varsity</a>
 
     <p class="font-bold mt-3">Ultimate Frisbee</p>
-    <a href="/sports/ultimate-frisbee/varsity.html" class="block">Varsity</a>
-    <a href="/sports/ultimate-frisbee/jv.html" class="block">JV</a>
+    <a href="/athletics/sports/ultimate-frisbee/varsity.html" class="block">Varsity</a>
+    <a href="/athletics/sports/ultimate-frisbee/jv.html" class="block">JV</a>
   </div>
 </details>
 
 
-    <a href="/schedule.html" class="block nav-link hover:text-red-500">Schedule</a>
-    <a href="/admin.html" class="block nav-link hover:text-red-500">Admin</a>
+    <a href="/athletics/schedule.html" class="block nav-link hover:text-red-500">Schedule</a>
+    <a href="/athletics/admin.html" class="block nav-link hover:text-red-500">Admin</a>
     <button onclick="logout()" class="block text-red-500 font-bold">
   Logout
 </button>
