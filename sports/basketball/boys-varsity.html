@@ -222,7 +222,14 @@ function renderWinLoss(games) {
     const upcoming = game.status === "Scheduled";
 
     const card = document.createElement('a');
-    card.href = game.livestreamUrl || "#";
+// Make the whole card link to the livestream if it exists, otherwise fallback to team page
+if (game.livestreamUrl) {
+  card.href = game.livestreamUrl;
+  card.target = "_blank"; // open in new tab
+  card.rel = "noopener";
+} else {
+  card.href = `/athletics/sports/${game.sport}/${game.team}.html`;
+}
     card.className = 'game-card mb-6 text-white';
 
     card.innerHTML = `
