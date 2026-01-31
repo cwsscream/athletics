@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/icons/cws-logo-red.png">
+<title>Commonwealth Athletics</title>
+
+<!-- Tailwind CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Global Styles -->
+<style>
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  /* Scoreboard styles */
+  .live-badge {
+    display: inline-block;
+    background-color: #dc2626;
+    color: white;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.8); }
+    70% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  }
+
+  a.game-card {
+    background-color: #111111;
+    border: 1px solid #333333;
+    border-radius: 24px;
+    padding: 1.5rem;
+    transition: all 0.2s ease-in-out;
+    display: block;
+    text-decoration: none;
+  }
+  a.game-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(220,38,38,0.3);
+    border-color: #dc2626;
+  }
+
+  .team-name { font-size: 1.25rem; font-weight: 600; }
+  .score { font-size: 2rem; color: #ffffff; font-weight: bold; }
+  .game-footer { color: #bbbbbb; font-size: 0.875rem; margin-top: 0.75rem; text-align: center; }
+
+  @media (max-width: 640px) {
+    .score { font-size: 1.5rem; }
+    a.game-card { padding: 1rem; }
+  }
+
+  /* Countdown badge */
+  .countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 9999px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    color: #e5e5e5;
+  }
+
+  .est-badge {
+    background: #dc2626;
+    color: white;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 9999px;
+    font-size: 0.65rem;
+  }
+
+  .countdown-pulse {
+    animation: pulse 1.5s infinite;
+  }
+
+  .navbar-bg {
+    background-image: url("/icons/navbar-bg.jpg"); /* CHANGE PATH */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .navbar-overlay {
+    background: rgba(0, 0, 0, 0.75);
+  }
+  .nav-link.active {
+    color: #dc2626; /* Tailwind red-600 */
+    font-weight: 700;
+  }
+</style>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js";
+import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCXzyNOFs1QWwO77IvS_xAK9D4mDJ93gpM",
+  authDomain: "commonwealth-scream-sports.firebaseapp.com",
+  projectId: "commonwealth-scream-sports",
+  storageBucket: "commonwealth-scream-sports.firebasestorage.app",
+  messagingSenderId: "743439769141",
+  appId: "1:743439769141:web:98f0dcf12b2ce1b9669b7c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const TIMEZONE = "America/New_York";
+// Check if a given date is "today" in EST
+function isTodayEST(date) {
+  const nowEST = new Date(new Date().toLocaleString("en-US", { timeZone: TIMEZONE }));
+  const dateEST = new Date(date.toLocaleString("en-US", { timeZone: TIMEZONE }));
+
+  return (
+    dateEST.getFullYear() === nowEST.getFullYear() &&
+    dateEST.getMonth() === nowEST.getMonth() &&
+    dateEST.getDate() === nowEST.getDate()
+  );
+}
+
+// countdown formatter
+function formatCountdown(ms) {
+  if (ms <= 0) return "Starting soon";
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / (3600 * 24));
+  const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  let parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0 || days > 0) parts.push(`${hours}h`);
+  parts.push(`${minutes}m`);
+  return parts.join(" ");
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const liveContainer = document.getElementById('live-games');
+  const todayContainer = document.getElementById('today-games');
+  const upcomingContainer = document.getElementById('upcoming-games');
+
+  onSnapshot(collection(db, "games"), snapshot => {
+    const now = new Date();
+    const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+    const todayEnd = new Date(now); todayEnd.setHours(23,59,59,999);
+
+    liveContainer.innerHTML = '';
+    todayContainer.innerHTML = '';
+    upcomingContainer.innerHTML = '';
+
+    const games = snapshot.docs
+  .map(d => ({ id: d.id, ...d.data() }))
+  .filter(g => g.datetime && typeof g.datetime.toDate === "function")
+  .sort((a, b) => a.datetime.toDate() - b.datetime.toDate());
+
+let hasLiveGames = false;
+let hasTodayGames = false;
+
+    games.forEach(game => {
+      const gameTime = game.datetime.toDate();
+      const estGameTime = new Date(gameTime.toLocaleString("en-US",{timeZone: TIMEZONE}));
+      const isLive = game.status === "Live";
+      const isFinal = game.status === "Final";
+      const todayGame = isTodayEST(gameTime);
+      const upcoming = estGameTime > now && !todayGame;
+      const showFinal = isFinal && todayGame;
+
+      const card = document.createElement('a');
+card.className = 'game-card mb-6 text-white';
+
+// Make the whole card link to the livestream if it exists, otherwise fallback to team page
+if (game.livestreamUrl) {
+  card.href = game.livestreamUrl;
+  card.target = "_blank"; // open in new tab
+  card.rel = "noopener";
+} else {
+  card.href = `/sports/${game.sport}/${game.team}.html`;
+}
+
+card.innerHTML = `
+  <div class="flex justify-between items-center mb-4">
+    <span class="text-gray-400 text-sm">
+      ${game.sport.toUpperCase()} • ${game.team.replaceAll("-", " ").toUpperCase()}
+    </span>
+    ${
+      isLive
+        ? '<span class="live-badge">LIVE</span>'
+        : showFinal
+          ? '<span class="text-gray-400 text-sm font-bold">FINAL</span>'
+          : ''
+    }
+  </div>
+
+  <div class="grid grid-cols-3 items-center">
+    <div class="text-left font-semibold text-base sm:text-lg truncate max-w-[120px] sm:max-w-none">
+      ${game.away}
+    </div>
+    <div class="text-center score">
+      ${isLive || showFinal ? `${game.awayScore} – ${game.homeScore}` : 'vs'}
+    </div>
+    <div class="text-right font-semibold text-base sm:text-lg truncate max-w-[120px] sm:max-w-none">
+      ${game.home}
+    </div>
+  </div>
+
+  <div class="game-footer">
+    ${
+      isLive
+        ? `<span class="font-semibold text-red-500">${game.periodLabel}</span>`
+        : upcoming
+          ? `
+            <div class="flex flex-col items-center gap-2">
+              <div>
+                ${estGameTime.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} •
+                ${estGameTime.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}
+              </div>
+              <div class="countdown countdown-pulse" data-time="${estGameTime.getTime()}">
+                <span class="est-badge">EST</span>
+                <span class="countdown-text">Loading…</span>
+              </div>
+            </div>
+          `
+          : `
+            <div>
+              ${estGameTime.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} •
+              ${estGameTime.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}
+            </div>
+          `
+    }
+  </div>
+`;
+
+// Append card to the correct section
+if (isLive) {
+  liveContainer.appendChild(card);
+  hasLiveGames = true;
+}
+else if (todayGame) {
+  todayContainer.appendChild(card);
+  hasTodayGames = true;
+}
+else if (upcoming) {
+  upcomingContainer.appendChild(card);
+}
+
+    });
+// ✅ Empty state messages (AFTER all games are processed)
+document.getElementById("no-live").classList.toggle(
+  "hidden",
+  hasLiveGames
+);
+
+document.getElementById("no-today").classList.toggle(
+  "hidden",
+  hasTodayGames
+);
+
+    
+  });
+
+  function updateCountdowns() {
+    const countdowns = document.querySelectorAll('.countdown');
+    const now = Date.now();
+    countdowns.forEach(cd => {
+      const target = parseInt(cd.getAttribute('data-time'), 10);
+      const textSpan = cd.querySelector('.countdown-text');
+      const msLeft = target - now;
+      textSpan.textContent = formatCountdown(msLeft);
+    });
+  }
+  setInterval(updateCountdowns, 1000);
+  updateCountdowns();
+
+  // Navbar dropdown
+  const mobileBtn = document.getElementById("mobile-menu-btn");
+  const mobileMenu = document.getElementById("mobile-menu");
+  mobileBtn.addEventListener("click", () => mobileMenu.classList.toggle("hidden"));
+
+  const sportsBtn = document.getElementById('sports-btn');
+  const sportsDropdown = document.getElementById('sports-dropdown');
+  const sportsArrow = document.getElementById('sports-arrow');
+
+  sportsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sportsDropdown.classList.toggle('hidden');
+    sportsArrow.classList.toggle('rotate-180');
+  });
+
+  window.addEventListener('click', (e) => {
+    if (!sportsBtn.contains(e.target) && !sportsDropdown.contains(e.target)) {
+      sportsDropdown.classList.add('hidden');
+      sportsArrow.classList.remove('rotate-180');
+    }
+  });
+
+});
+// highlight active nav link
+const currentPath = window.location.pathname.replace(/\/$/, "") || "/";
+document.querySelectorAll(".nav-link").forEach(link => {
+  const linkPath = link.getAttribute("href").replace(/\/$/, "") || "/";
+  if (linkPath === currentPath) {
+    link.classList.add("active");
+  }
+});
+</script>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+<!-- Navbar -->
+<nav class="navbar-bg text-white sticky top-0 z-50 border-b border-neutral-800">
+  <div class="navbar-overlay">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="flex items-center h-16 w-full">
+        <!-- Logo + Text -->
+        <a href="/" class="flex items-center gap-2 mr-auto">
+          <img src="/icons/cws-logo-red.png" alt="Logo" class="h-10 w-10">
+          <span class="font-extrabold text-red-600 text-xl sm:text-2xl md:text-3xl">
+            Commonwealth Athletics
+          </span>
+        </a>
+
+        <div class="hidden md:flex space-x-6 items-center">
+          <a href="/" class="nav-link hover:text-red-500">Home</a>
+
+          <!-- Sports Dropdown -->
+          <div class="relative">
+            <button id="sports-btn" class="hover:text-red-500 font-semibold flex items-center gap-1">
+              Sports <span id="sports-arrow" class="transition-transform duration-200">▾</span>
+            </button>
+            <div id="sports-dropdown" class="absolute mt-3 bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl w-56 hidden z-50">
+
+  <!-- Basketball -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Basketball</div>
+    <a href="/sports/basketball/boys-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys Varsity</a>
+    <a href="/sports/basketball/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+    <a href="/sports/basketball/boys-jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys JV</a>
+  </div>
+
+  <!-- Soccer -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Soccer</div>
+    <a href="/sports/soccer/boys-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys Varsity</a>
+    <a href="/sports/soccer/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+    <a href="/sports/soccer/boys-jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys JV</a>
+  </div>
+
+  <!-- Fencing -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Fencing</div>
+    <a href="/sports/fencing/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+  </div>
+
+  <!-- Cross Country -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Cross Country</div>
+    <a href="/sports/cross-country/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+  </div>
+
+  <!-- Volleyball -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Volleyball</div>
+    <a href="/sports/volleyball/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+  </div>
+
+  <!-- Ultimate Frisbee -->
+  <div>
+    <div class="px-4 py-2 font-bold text-gray-300">Ultimate Frisbee</div>
+    <a href="/sports/ultimate-frisbee/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+    <a href="/sports/ultimate-frisbee/jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">JV</a>
+  </div>
+
+</div>
+
+          </div>
+
+          <a href="schedule.html" class="hover:text-red-500">Schedule</a>
+          <a href="/admin.html" class="hover:text-red-500">Admin</a>
+        </div>
+
+        <button id="mobile-menu-btn" class="md:hidden text-white focus:outline-none ml-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div id="mobile-menu" class="hidden md:hidden bg-black border-b border-neutral-800">
+  <div class="px-6 py-4 space-y-4 text-lg">
+    <a href="/" class="nav-link block hover:text-red-500">Home</a>
+    <details class="group">
+      <summary class="cursor-pointer hover:text-red-500 flex justify-between items-center">
+        Sports <span class="transition-transform duration-200 group-open:rotate-180">▼</span>
+      </summary>
+      <div class="ml-4 mt-2 space-y-2 text-sm text-gray-300">
+
+  <p class="font-bold">Basketball</p>
+  <a href="/sports/basketball/boys-varsity.html" class="block">Boys Varsity</a>
+  <a href="/sports/basketball/girls-varsity.html" class="block">Girls Varsity</a>
+  <a href="/sports/basketball/boys-jv.html" class="block">Boys JV</a>
+
+  <p class="font-bold mt-3">Soccer</p>
+  <a href="/sports/soccer/boys-varsity.html" class="block">Boys Varsity</a>
+  <a href="/sports/soccer/girls-varsity.html" class="block">Girls Varsity</a>
+  <a href="/sports/soccer/boys-jv.html" class="block">Boys JV</a>
+
+  <p class="font-bold mt-3">Fencing</p>
+  <a href="/sports/fencing/varsity.html" class="block">Varsity</a>
+
+  <p class="font-bold mt-3">Cross Country</p>
+  <a href="/sports/cross-country/varsity.html" class="block">Varsity</a>
+
+  <p class="font-bold mt-3">Volleyball</p>
+  <a href="/sports/volleyball/girls-varsity.html" class="block">Girls Varsity</a>
+
+  <p class="font-bold mt-3">Ultimate Frisbee</p>
+  <a href="/sports/ultimate-frisbee/varsity.html" class="block">Varsity</a>
+  <a href="/sports/ultimate-frisbee/jv.html" class="block">JV</a>
+
+</div>
+
+    </details>
+
+    <a href="/schedule.html" class="block hover:text-red-500">Schedule</a>
+    <a href="/admin.html" class="block hover:text-red-500">Admin</a>
+  </div>
+</div>
+
+<main class="flex-grow">
+
+<!-- Header -->
+<header class="relative h-[240px] md:h-[280px] border-b border-neutral-800 overflow-hidden">
+  <img src="/icons/school.jpg" alt="Commonwealth Athletics" class="absolute inset-0 w-full h-full object-cover scale-105" />
+  <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-black/70 to-black/90"></div>
+  <div class="relative z-10 max-w-6xl mx-auto px-4 h-full flex flex-col justify-center items-center text-center">
+  <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white">
+    Commonwealth School Athletics
+  </h1>
+  <p class="mt-4 text-lg sm:text-xl md:text-2xl text-gray-200">
+    Live Scores · Upcoming Games · Today’s Results
+  </p>
+  <p class="mt-3 text-sm text-gray-400">
+    Run by Ryan ’28 and Andrew ’28 · SCREAM Club
+  </p>
+</div>
+</header>
+
+<div class="max-w-4xl mx-auto mt-12 px-4">
+  <section>
+    <h2 class="text-2xl text-red-600 font-bold mb-4">Live Now</h2>
+    <div id="live-games" class="grid gap-6"></div>
+    <p id="no-live" class="hidden text-gray-400 italic text-center mt-4">
+  No Ongoing Live Games
+</p>
+
+  </section>
+
+  <section class="mt-12">
+    <h2 class="text-2xl text-white font-bold mb-4">Today's Games</h2>
+    <div id="today-games" class="grid gap-6"></div>
+    <p id="no-today" class="hidden text-gray-400 italic text-center mt-4">
+  No Games Today
+</p>
+
+  </section>
+
+  <section class="mt-12">
+    <h2 class="text-2xl text-white font-bold mb-4">Upcoming Games</h2>
+    <div id="upcoming-games" class="grid gap-6"></div>
+  </section>
+</div>
+</main>
+
+<footer class="bg-black border-t border-neutral-800">
+  <div class="max-w-6xl mx-auto px-4 py-6 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div class="flex gap-4">
+      <a href="https://instagram.com/cwssports" target="_blank" rel="noopener">
+        <img src="/icons/instagram-white.png" alt="Instagram" class="h-6 w-6 hover:opacity-80 transition">
+      </a>
+      <a href="https://youtube.com/@commonwealthscream" target="_blank" rel="noopener">
+        <img src="/icons/youtube-white.png" alt="YouTube" class="h-6 w-6 hover:opacity-80 transition">
+      </a>
+    </div>
+    <p class="text-gray-400 text-sm text-center md:text-right">
+      Powered by SCREAM Clu
+    </p>
+  </div>
+</footer>
+</body>
+</html>

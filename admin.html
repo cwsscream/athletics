@@ -1,0 +1,726 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="/icons/cws-logo-red.png">
+  <title>Admin Panel - Commonwealth Athletics</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Global CSS -->
+  <style>
+    :root {
+      --background: #0a0a0a;
+      --foreground: #ededed;
+    }
+    body {
+      background: var(--background);
+      color: var(--foreground);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .btn {
+  background: #262626;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 16px;
+  color: white;
+}
+    .btn:hover { background: #404040; }
+    .btn-gray { background: #404040; padding: 8px 14px; border-radius: 10px; color: white; }
+    .btn-red { background: #dc2626; padding: 8px 14px; border-radius: 10px; color: white; }
+    .btn-green { background: #15803d; padding: 8px 14px; border-radius: 10px; color: white; }
+
+    select { background: #1f1f1f; color: white; border: 1px solid #444; border-radius: 8px; padding: 6px; }
+    input[type="number"] { background: #1f1f1f; color: white; border: 1px solid #444; border-radius: 8px; padding: 4px; text-align: center; }
+
+    .game-card {
+  padding: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .game-card {
+    padding: 1rem;
+  }
+}
+
+    .game-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(220,38,38,0.3); border-color: #dc2626; }
+
+    .navbar-bg { background-image: url("/icons/navbar-bg.jpg"); background-size: cover; background-position: center; background-repeat: no-repeat; }
+    .navbar-overlay { background: rgba(0, 0, 0, 0.75); }
+    .nav-link.active { color: #dc2626; font-weight: 700; }
+    .filter-btn {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: #1f1f1f;
+  border: 1px solid #333;
+  font-size: 14px;
+  color: #e5e5e5;
+  transition: all 0.15s ease;
+}
+
+.filter-btn:hover {
+  background: #262626;
+}
+
+.filter-btn.active {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: white;
+  font-weight: 600;
+}
+
+  </style>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    const mobileSportFilter = document.getElementById("mobile-sport-filter");
+const mobileTeamFilter = document.getElementById("mobile-team-filter");
+
+if (mobileSportFilter) {
+  mobileSportFilter.addEventListener("change", () => {
+    activeSport = mobileSportFilter.value;
+    renderGames();
+  });
+}
+
+if (mobileTeamFilter) {
+  mobileTeamFilter.addEventListener("change", () => {
+    activeTeam = mobileTeamFilter.value;
+    renderGames();
+  });
+}
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
+    let ALL_GAMES = [];
+const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+const loginScreenWrapper = document.getElementById("login-screen-wrapper");
+const mobileLogin = document.getElementById("mobile-login");
+
+if (isMobile) {
+  // Hide normal login, show mobile login
+  loginScreenWrapper.classList.add("hidden");
+  mobileLogin.classList.remove("hidden");
+}
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCXzyNOFs1QWwO77IvS_xAK9D4mDJ93gpM",
+      authDomain: "commonwealth-scream-sports.firebaseapp.com",
+      projectId: "commonwealth-scream-sports",
+      storageBucket: "commonwealth-scream-sports.firebasestorage.app",
+      messagingSenderId: "743439769141",
+      appId: "1:743439769141:web:98f0dcf12b2ce1b9669b7c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
+// Handle Google redirect result (for mobile)
+getRedirectResult(auth)
+  .then(async (result) => {
+    if (result) {
+      const user = result.user;
+      const error = document.getElementById("login-error");
+      if (!ADMIN_EMAILS.includes(user.email)) {
+        await signOut(auth);
+        error.textContent = "Unauthorized: You do not have access";
+        error.classList.remove("hidden");
+      }
+    }
+  })
+  .catch((err) => {
+    console.error(err);
+    const error = document.getElementById("login-error");
+    error.textContent = "Google login failed";
+    error.classList.remove("hidden");
+  });
+
+
+    // Only these emails can access admin panel
+    const ADMIN_EMAILS = ["rwang@commschool.org",
+      "asloan@commschool.org",
+      "commonwealthscream@gmail.com",
+      "bchen@commschool.org",
+      "andrew305sloan@gmail.com"
+    ];
+
+    // Firebase Auth functions
+ window.login = async () => {
+  const email = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  const error = document.getElementById("login-error");
+
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    if (!ADMIN_EMAILS.includes(user.email)) {
+      await signOut(auth); // log out unauthorized user
+      error.textContent = "Unauthorized: You do not have access";
+      error.classList.remove("hidden");
+      return;
+    }
+
+    error.classList.add("hidden"); // authorized
+  } catch {
+    error.textContent = "Invalid email or password";
+    error.classList.remove("hidden");
+  }
+};
+window.googleLogin = () => {
+  const error = document.getElementById("login-error");
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+if (isMobile) {
+  signInWithRedirect(auth, googleProvider); // synchronous
+  return;
+}
+
+
+  // Desktop popup
+  signInWithPopup(auth, googleProvider)
+    .then(async (result) => {
+      const user = result.user;
+      if (!ADMIN_EMAILS.includes(user.email)) {
+        await signOut(auth);
+        error.textContent = "Unauthorized: You do not have access";
+        error.classList.remove("hidden");
+        return;
+      }
+      error.classList.add("hidden");
+    })
+    .catch((err) => {
+      console.error(err);
+      error.textContent = "Google login failed";
+      error.classList.remove("hidden");
+    });
+};
+
+    window.logout = async () => {
+      await signOut(auth);
+    }
+
+    // Show admin panel only for authorized users
+    onAuthStateChanged(auth, (user) => {
+  const loginScreen = document.getElementById("login-screen");
+  const adminPanel = document.getElementById("admin-panel");
+
+  // ✅ If mobile login flag is set, skip Firebase auth hiding
+  if (MOBILE_ADMIN_LOGGED_IN) {
+    loginScreen.classList.add("hidden");
+    adminPanel.classList.remove("hidden");
+    renderGames();  // make sure games still render
+    return;
+  }
+
+  if (user && ADMIN_EMAILS.includes(user.email)) {
+    loginScreen.classList.add("hidden");
+    adminPanel.classList.remove("hidden");
+    initAdminPanel(); // 🔹 call init function here
+  } else {
+    loginScreen.classList.remove("hidden");
+    adminPanel.classList.add("hidden");
+    if (user) signOut(auth);
+  }
+});
+
+import { getRedirectResult } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
+
+    // Firestore game management
+    const PERIOD_OPTIONS = {
+      "boys-varsity": ["1st Half", "Halftime", "2nd Half", "Final"],
+      "girls-varsity": ["Q1", "Q2", "Q3", "Q4", "Halftime", "Final"],
+      "boys-jv": ["1st Half", "Halftime", "2nd Half", "Final"],
+      "girls-jv": ["Q1", "Q2", "Q3", "Q4", "Halftime", "Final"],
+      "varsity": ["1st Half", "Halftime", "2nd Half", "Final"]
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('games-container');
+
+      onSnapshot(collection(db, "games"), snapshot => {
+        ALL_GAMES = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+renderGames();
+
+
+        
+      });
+    });
+
+    window.updateScore = async (id, team, value) => {
+  const val = parseInt(value) || 0;
+  await updateDoc(doc(db, "games", id), {
+    [`${team}Score`]: val
+  });
+};
+
+window.changeScore = async (id, team, delta) => {
+  const input = document.getElementById(`${team}-${id}`);
+  const newScore = Math.max(0, parseInt(input.value) + delta);
+  input.value = newScore;
+
+  await updateDoc(doc(db, "games", id), {
+    [`${team}Score`]: newScore
+  });
+};
+
+    window.updatePeriod = async (id, value) => {
+      await updateDoc(doc(db, "games", id), { periodLabel: value });
+    }
+    window.updateStatus = async (id, status) => {
+      const updateObj = { status };
+      if (status === "Final") updateObj.periodLabel = "Final";
+      await updateDoc(doc(db, "games", id), updateObj);
+    }
+
+    document.querySelectorAll(".nav-link").forEach(link => {
+      const linkPath = link.getAttribute("href").replace(/\/$/, "");
+      const currentPath = window.location.pathname.replace(/\/$/, "");
+      if (linkPath === currentPath || (currentPath.includes("schedule") && linkPath.includes("schedule")) || (currentPath.includes("admin") && linkPath.includes("admin"))) {
+        link.classList.add("active");
+      }
+    });
+// ----- NAVBAR TOGGLES -----
+
+const sportsBtn = document.getElementById("sports-btn");
+const sportsDropdown = document.getElementById("sports-dropdown");
+const sportsArrow = document.getElementById("sports-arrow");
+
+if (sportsBtn) {
+  sportsBtn.addEventListener("click", () => {
+    sportsDropdown.classList.toggle("hidden");
+    sportsArrow.classList.toggle("rotate-180");
+  });
+}
+
+// Close dropdown when clicking outside
+document.addEventListener("click", (e) => {
+  if (
+    sportsDropdown &&
+    !sportsDropdown.contains(e.target) &&
+    !sportsBtn.contains(e.target)
+  ) {
+    sportsDropdown.classList.add("hidden");
+    sportsArrow.classList.remove("rotate-180");
+  }
+});
+
+// Mobile menu
+const mobileBtn = document.getElementById("mobile-menu-btn");
+const mobileMenu = document.getElementById("mobile-menu");
+
+if (mobileBtn) {
+  mobileBtn.addEventListener("click", () => {
+    mobileMenu.classList.toggle("hidden");
+  });
+}
+let activeSport = "all";
+let activeTeam = "all";
+
+function renderGames() {
+  const container = document.getElementById("games-container");
+  container.innerHTML = "";
+
+  let games = [...ALL_GAMES];
+
+  // FILTERS
+  if (activeSport !== "all") {
+    games = games.filter(g => g.sport === activeSport);
+  }
+
+if (activeTeam !== "all") {
+  if (activeTeam === "varsity") {
+    games = games.filter(g =>
+      g.team === "boys-varsity" ||
+      g.team === "girls-varsity"
+    );
+  } else {
+    games = games.filter(g => g.team === activeTeam);
+  }
+}
+
+  // SORT: Live → Scheduled → Final
+  games.sort((a, b) => {
+    const order = { Live: 0, Scheduled: 1, Final: 2 };
+    if (order[a.status] !== order[b.status]) {
+      return order[a.status] - order[b.status];
+    }
+    return (a.datetime?.toDate?.() || 0) - (b.datetime?.toDate?.() || 0);
+  });
+
+  games.forEach(game => {
+    const card = document.createElement("div");
+    card.className = "game-card mb-6 text-white";
+
+    const teamsHTML = `
+      <div class="font-bold mb-4">${game.away} @ ${game.home}</div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4">
+        <div>
+          <p class="mb-2">${game.away}</p>
+          <div class="flex flex-col sm:flex-row items-center gap-2">
+            <button class="btn" onclick="changeScore('${game.id}','away',-1)">–</button>
+            <input type="number" id="away-${game.id}" value="${game.awayScore}"
+              oninput="updateScore('${game.id}','away',this.value)"
+              class="w-full sm:w-16 text-center">
+            <button class="btn" onclick="changeScore('${game.id}','away',1)">+</button>
+          </div>
+        </div>
+
+        <div>
+          <p class="mb-2">${game.home}</p>
+          <div class="flex flex-col sm:flex-row items-center gap-2">
+            <button class="btn" onclick="changeScore('${game.id}','home',-1)">–</button>
+            <input type="number" id="home-${game.id}" value="${game.homeScore}"
+              oninput="updateScore('${game.id}','home',this.value)"
+              class="w-full sm:w-16 text-center">
+            <button class="btn" onclick="changeScore('${game.id}','home',1)">+</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const periodOptions = PERIOD_OPTIONS[game.team] || [];
+    const periodHTML = `
+      <div class="mb-4">
+        <label class="block mb-1 text-sm text-gray-400">Period</label>
+        <select onchange="updatePeriod('${game.id}',this.value)">
+          ${periodOptions.map(p =>
+            `<option ${p === game.periodLabel ? "selected" : ""}>${p}</option>`
+          ).join("")}
+        </select>
+      </div>
+    `;
+
+    const statusHTML = `
+      <div class="flex gap-3">
+        <button class="btn-gray" onclick="updateStatus('${game.id}','Scheduled')">Scheduled</button>
+        <button class="btn-red" onclick="updateStatus('${game.id}','Live')">LIVE</button>
+        <button class="btn-green" onclick="updateStatus('${game.id}','Final')">Final</button>
+      </div>
+    `;
+
+    card.innerHTML = teamsHTML + periodHTML + statusHTML;
+    container.appendChild(card);
+  });
+}
+
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const type = btn.dataset.filter;
+    const value = btn.dataset.value;
+
+    document
+      .querySelectorAll(`.filter-btn[data-filter="${type}"]`)
+      .forEach(b => b.classList.remove("active"));
+
+    btn.classList.add("active");
+
+    if (type === "sport") activeSport = value;
+    if (type === "team") activeTeam = value;
+
+    renderGames();
+  });
+});
+// Mobile dropdown filters
+const sportDropdown = document.getElementById("sport-dropdown");
+const teamDropdown = document.getElementById("team-dropdown");
+
+if (sportDropdown) {
+  sportDropdown.addEventListener("change", () => {
+    activeSport = sportDropdown.value;
+    renderGames();
+  });
+}
+
+if (teamDropdown) {
+  teamDropdown.addEventListener("change", () => {
+    activeTeam = teamDropdown.value;
+    renderGames();
+  });
+}
+let MOBILE_ADMIN_LOGGED_IN = false;
+
+// MOBILE LOGIN (dummy)
+const mobileLoginBtn = document.getElementById("mobile-login-btn");
+if (mobileLoginBtn) {
+  mobileLoginBtn.addEventListener("click", () => {
+    const user = document.getElementById("mobile-username").value.trim();
+    const pass = document.getElementById("mobile-password").value.trim();
+    const error = document.getElementById("mobile-login-error");
+
+    if (user === "mobile" && pass === "cwsscream") {
+      MOBILE_ADMIN_LOGGED_IN = true;  // ✅ mark mobile login as valid
+
+      // Hide mobile login screen
+      document.getElementById("mobile-login").classList.add("hidden");
+      
+      // Show admin panel
+      document.getElementById("admin-panel").classList.remove("hidden");
+
+      // Render games
+      renderGames();
+
+      error.classList.add("hidden");
+    } else {
+      error.textContent = "Invalid username or password";
+      error.classList.remove("hidden");
+    }
+  });
+}
+
+
+function initAdminPanel() {
+  // Show filters, set defaults
+  activeSport = "all";
+  activeTeam = "all";
+
+  // Show admin panel
+  document.getElementById("admin-panel").classList.remove("hidden");
+
+  // Render all games from Firestore
+  renderGames();
+
+  // Any other init code you already have for the panel can go here
+}
+
+  </script>
+</head>
+<div class="min-h-screen flex flex-col">
+<!-- MOBILE LOGIN (only shows on phones) -->
+<div id="mobile-login" class="hidden min-h-screen flex items-center justify-center bg-neutral-900 p-6">
+  <div class="w-full max-w-sm bg-neutral-900 p-6 rounded-2xl border border-neutral-700">
+    <h1 class="text-2xl sm:text-3xl font-bold text-red-600 mb-5 text-center">Mobile Admin Login</h1>
+    <input id="mobile-username" type="text" placeholder="Username" class="p-2 rounded mb-2 w-full bg-neutral-800 text-white border border-neutral-600">
+    <input id="mobile-password" type="password" placeholder="Password" class="p-2 rounded mb-2 w-full bg-neutral-800 text-white border border-neutral-600">
+    <button id="mobile-login-btn" class="btn w-full">Login</button>
+    <p id="mobile-login-error" class="text-red-400 text-sm hidden mt-2 text-center">Invalid login</p>
+  </div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen-wrapper" class="flex-1 flex items-center justify-center">
+  <div
+    id="login-screen"
+    class="w-full max-w-sm sm:max-w-md bg-neutral-900 p-6 sm:p-8 rounded-2xl border border-neutral-700"
+  >
+  <h1 class="text-2xl sm:text-3xl font-bold text-red-600 mb-5 text-center">
+    Admin Login
+  </h1>
+
+
+
+  <button
+    onclick="googleLogin()"
+    class="w-full mt-3 flex items-center justify-center gap-3 bg-white text-black py-2.5 rounded-xl font-semibold hover:bg-gray-200 text-sm sm:text-base"
+  >
+    <img src="/icons/google.png" class="w-4 h-4 sm:w-5 sm:h-5">
+    Sign in with Google
+  </button>
+
+  <p id="login-error" class="text-red-400 mt-3 text-sm hidden text-center">
+    Invalid login
+  </p>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="admin-panel" class="hidden min-h-screen flex flex-col w-full">
+
+  <!-- Navbar (same as home page) -->
+  <!-- ... keep your existing navbar HTML ... -->
+<!-- Navbar (same as home page) -->
+<nav class="navbar-bg text-white sticky top-0 z-50 border-b border-neutral-800">
+  <div class="navbar-overlay">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="flex justify-between h-16 items-center">
+
+        <!-- Logo + Text -->
+        <a href="/" class="flex items-center gap-2">
+          <img src="/icons/cws-logo-red.png" alt="Logo" class="h-10 w-10">
+          <span class="font-extrabold text-red-600 text-xl sm:text-2xl md:text-3xl">
+  Commonwealth Athletics
+</span>
+
+        </a>
+        
+
+        <!-- Desktop Menu -->
+        <div class="hidden md:flex space-x-6 items-center">
+          <a href="/" class="hover:text-red-500">Home</a>
+
+          <!-- Sports Dropdown -->
+          <div class="relative">
+            <button id="sports-btn" class="hover:text-red-500 font-semibold flex items-center gap-1">
+              Sports <span id="sports-arrow" class="transition-transform duration-200">▾</span>
+            </button>
+            <div id="sports-dropdown" class="absolute mt-3 bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl w-56 hidden z-50">
+
+  <!-- Basketball -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Basketball</div>
+    <a href="/sports/basketball/boys-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys Varsity</a>
+    <a href="/sports/basketball/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+    <a href="/sports/basketball/boys-jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys JV</a>
+  </div>
+
+  <!-- Soccer -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Soccer</div>
+    <a href="/sports/soccer/boys-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys Varsity</a>
+    <a href="/sports/soccer/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+    <a href="/sports/soccer/boys-jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys JV</a>
+  </div>
+
+  <!-- Fencing -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Fencing</div>
+    <a href="/sports/fencing/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+  </div>
+
+  <!-- Cross Country -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Cross Country</div>
+    <a href="/sports/cross-country/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+  </div>
+
+  <!-- Volleyball -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Volleyball</div>
+    <a href="/sports/volleyball/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+  </div>
+
+  <!-- Ultimate Frisbee -->
+  <div>
+    <div class="px-4 py-2 font-bold text-gray-300">Ultimate Frisbee</div>
+    <a href="/sports/ultimate-frisbee/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+    <a href="/sports/ultimate-frisbee/jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">JV</a>
+  </div>
+
+</div>
+
+          </div>
+
+          <a href="schedule.html" class="nav-link hover:text-red-500">Schedule</a>
+          <a href="/admin.html" class="nav-link hover:text-red-500">Admin</a>
+          <button onclick="logout()" class="text-red-500 font-bold hover:text-red-400">
+  Logout
+</button>
+
+        </div>
+        <!-- Mobile Hamburger -->
+<button id="mobile-menu-btn" class="md:hidden text-white focus:outline-none">
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none"
+       viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M4 6h16M4 12h16M4 18h16"/>
+  </svg>
+</button>
+
+      </div>
+    </div>
+  </div>
+</nav>
+<div id="mobile-menu" class="hidden md:hidden bg-black border-b border-neutral-800">
+  <div class="px-6 py-4 space-y-4 text-lg">
+    <a href="/" class="nav-link block hover:text-red-500">Home</a>
+    <details class="group">
+  <summary class="cursor-pointer hover:text-red-500 flex justify-between items-center">
+    Sports <span class="transition-transform duration-200 group-open:rotate-180">▼</span>
+  </summary>
+  <div class="ml-4 mt-2 space-y-2 text-sm text-gray-300">
+    <p class="font-bold">Basketball</p>
+    <a href="/sports/basketball/boys-varsity.html" class="block">Boys Varsity</a>
+    <a href="/sports/basketball/girls-varsity.html" class="block">Girls Varsity</a>
+    <a href="/sports/basketball/boys-jv.html" class="block">Boys JV</a>
+
+    <p class="font-bold mt-3">Soccer</p>
+    <a href="/sports/soccer/boys-varsity.html" class="block">Boys Varsity</a>
+    <a href="/sports/soccer/girls-varsity.html" class="block">Girls Varsity</a>
+    <a href="/sports/soccer/boys-jv.html" class="block">Boys JV</a>
+
+    <p class="font-bold mt-3">Fencing</p>
+    <a href="/sports/fencing/varsity.html" class="block">Varsity</a>
+
+    <p class="font-bold mt-3">Cross Country</p>
+    <a href="/sports/cross-country/varsity.html" class="block">Varsity</a>
+
+    <p class="font-bold mt-3">Volleyball</p>
+    <a href="/sports/volleyball/girls-varsity.html" class="block">Girls Varsity</a>
+
+    <p class="font-bold mt-3">Ultimate Frisbee</p>
+    <a href="/sports/ultimate-frisbee/varsity.html" class="block">Varsity</a>
+    <a href="/sports/ultimate-frisbee/jv.html" class="block">JV</a>
+  </div>
+</details>
+
+
+    <a href="/schedule.html" class="block nav-link hover:text-red-500">Schedule</a>
+    <a href="/admin.html" class="block nav-link hover:text-red-500">Admin</a>
+    <button onclick="logout()" class="block text-red-500 font-bold">
+  Logout
+</button>
+
+  </div>
+</div>
+  <main class="flex-1 max-w-6xl mx-auto px-4 py-10">
+    <h1 class="text-3xl font-extrabold mb-8 text-red-600">Admin Control Panel</h1>
+    <!-- FILTERS (Schedule-style) -->
+<div class="flex flex-wrap gap-3 mb-8">
+
+<!-- SPORT FILTER (Desktop only) -->
+<div class="flex gap-2 flex-wrap hidden sm:flex">
+  <button class="filter-btn active" data-filter="sport" data-value="all">All Sports</button>
+  <button class="filter-btn" data-filter="sport" data-value="basketball">Basketball</button>
+  <button class="filter-btn" data-filter="sport" data-value="soccer">Soccer</button>
+  <button class="filter-btn" data-filter="sport" data-value="fencing">Fencing</button>
+  <button class="filter-btn" data-filter="sport" data-value="cross-country">Cross Country</button>
+  <button class="filter-btn" data-filter="sport" data-value="volleyball">Volleyball</button>
+  <button class="filter-btn" data-filter="sport" data-value="ultimate-frisbee">Ultimate Frisbee</button>
+</div>
+
+<!-- TEAM FILTER (Desktop only) -->
+<div class="flex gap-2 flex-wrap hidden sm:flex">
+  <button class="filter-btn active" data-filter="team" data-value="all">All Teams</button>
+  <button class="filter-btn" data-filter="team" data-value="boys-varsity">Boys Varsity</button>
+  <button class="filter-btn" data-filter="team" data-value="girls-varsity">Girls Varsity</button>
+  <button class="filter-btn" data-filter="team" data-value="boys-jv">Boys JV</button>
+  <button class="filter-btn" data-filter="team" data-value="girls-jv">Girls JV</button>
+  <button class="filter-btn" data-filter="team" data-value="varsity">Varsity</button>
+</div>
+
+</div>
+<!-- MOBILE FILTER DROPDOWNS -->
+<div class="flex flex-col gap-3 mb-4 sm:hidden">
+  <select id="mobile-sport-filter" class="p-2 rounded-lg bg-neutral-800 text-white border border-neutral-600">
+    <option value="all">All Sports</option>
+    <option value="basketball">Basketball</option>
+    <option value="soccer">Soccer</option>
+    <option value="fencing">Fencing</option>
+    <option value="cross-country">Cross Country</option>
+    <option value="volleyball">Volleyball</option>
+    <option value="ultimate-frisbee">Ultimate Frisbee</option>
+  </select>
+
+  <select id="mobile-team-filter" class="p-2 rounded-lg bg-neutral-800 text-white border border-neutral-600">
+    <option value="all">All Teams</option>
+    <option value="boys-varsity">Boys Varsity</option>
+    <option value="girls-varsity">Girls Varsity</option>
+    <option value="boys-jv">Boys JV</option>
+    <option value="girls-jv">Girls JV</option>
+    <option value="varsity">Varsity</option>
+  </select>
+</div>
+
+    <div id="games-container" class="grid gap-6"></div>
+  </main>
+</div>
+
+</body>
+</html>
