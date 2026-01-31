@@ -508,6 +508,10 @@ function initAdminPanel() {
   </script>
 </head>
 <div class="min-h-screen flex flex-col">
+  <div id="mobile-admin-message" class="hidden min-h-screen flex items-center justify-center bg-neutral-900 text-white p-6 text-center">
+  <h1 class="text-3xl font-bold text-red-600">Admin page not available on mobile</h1>
+  <p class="mt-4 text-gray-300">Please use a desktop to access the admin panel.</p>
+</div>
 <!-- MOBILE LOGIN (only shows on phones) -->
 <div id="mobile-login" class="hidden min-h-screen flex items-center justify-center bg-neutral-900 p-6">
   <div class="w-full max-w-sm bg-neutral-900 p-6 rounded-2xl border border-neutral-700">
@@ -542,10 +546,6 @@ function initAdminPanel() {
   <p id="login-error" class="text-red-400 mt-3 text-sm hidden text-center">
     Invalid login
   </p>
-</div>
-<div id="mobile-admin-message" class="hidden min-h-screen flex items-center justify-center bg-neutral-900 text-white p-6 text-center">
-  <h1 class="text-3xl font-bold text-red-600">Admin page not available on mobile</h1>
-  <p class="mt-4 text-gray-300">Please use a desktop to access the admin panel.</p>
 </div>
 
 <!-- ADMIN PANEL -->
