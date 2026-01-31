@@ -121,18 +121,24 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-// Handle Google redirect result (for mobile)
+// Handle mobile redirect result
 getRedirectResult(auth)
   .then(async (result) => {
-    if (result) {
-      const user = result.user;
-      const error = document.getElementById("login-error");
-      if (!ADMIN_EMAILS.includes(user.email)) {
-        await signOut(auth);
-        error.textContent = "Unauthorized: You do not have access";
-        error.classList.remove("hidden");
-      }
+    if (!result) return; // no redirect happened
+
+    const user = result.user;
+    const error = document.getElementById("login-error");
+
+    if (!ADMIN_EMAILS.includes(user.email)) {
+      await signOut(auth);
+      error.textContent = "Unauthorized: You do not have access";
+      error.classList.remove("hidden");
+      return;
     }
+
+    error.classList.add("hidden");
+    showApp(); // <-- show the admin panel
+    initAdminPanel(); // <-- initialize admin panel
   })
   .catch((err) => {
     console.error(err);
@@ -140,8 +146,7 @@ getRedirectResult(auth)
     error.textContent = "Google login failed";
     error.classList.remove("hidden");
   });
-
-
+    
     // Only these emails can access admin panel
     const ADMIN_EMAILS = ["rwang@commschool.org",
       "asloan@commschool.org",
@@ -151,7 +156,7 @@ getRedirectResult(auth)
     ];
 
     // Firebase Auth functions
- window.login = async () => {
+window.login = async () => {
   const email = document.getElementById("username").value;
   const password = document.getElementById("password").value;
   const error = document.getElementById("login-error");
@@ -161,28 +166,30 @@ getRedirectResult(auth)
     const user = userCredential.user;
 
     if (!ADMIN_EMAILS.includes(user.email)) {
-      await signOut(auth); // log out unauthorized user
+      await signOut(auth);
       error.textContent = "Unauthorized: You do not have access";
       error.classList.remove("hidden");
       return;
     }
 
-    error.classList.add("hidden"); // authorized
+    error.classList.add("hidden");
+    showApp();       // <-- show admin panel
+    initAdminPanel(); // <-- initialize games + filters
   } catch {
     error.textContent = "Invalid email or password";
     error.classList.remove("hidden");
   }
 };
+    
+// Google login for desktop + mobile
 window.googleLogin = () => {
   const error = document.getElementById("login-error");
   const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
-if (isMobile) {
-  signInWithRedirect(auth, googleProvider); // synchronous
-  return;
-}
-
-
+  if (isMobile) {
+    signInWithRedirect(auth, googleProvider); // mobile redirect
+    return;
+  }
   // Desktop popup
   signInWithPopup(auth, googleProvider)
     .then(async (result) => {
@@ -194,6 +201,8 @@ if (isMobile) {
         return;
       }
       error.classList.add("hidden");
+      showApp(); // <-- show the admin panel
+      initAdminPanel(); // <-- initialize admin panel
     })
     .catch((err) => {
       console.error(err);
