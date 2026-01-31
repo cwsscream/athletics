@@ -409,21 +409,41 @@ updateCountdowns();
     if (!teamBtn.contains(e.target) && !teamDropdown.contains(e.target)) teamDropdown.classList.add('hidden');
   });
 
-  onSnapshot(collection(db, "games"), snapshot => {
-  allGames = snapshot.docs
-    .map(d => ({ id: d.id, ...d.data() }))
-    .sort((a, b) => {
-      let aTime = a.datetime && a.datetime.toDate ? a.datetime.toDate().getTime() : 0;
-      let bTime = b.datetime && b.datetime.toDate ? b.datetime.toDate().getTime() : 0;
-      return aTime - bTime; // ASCENDING
-    });
+onSnapshot(collection(db, "games"), snapshot => {
+  allGames = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-  console.log("Games fetched from Firestore:", allGames); // <-- Add this to debug
+  const now = new Date();
+
+  allGames.sort((a, b) => {
+    const aTime = a.datetime && a.datetime.toDate ? a.datetime.toDate().getTime() : 0;
+    const bTime = b.datetime && b.datetime.toDate ? b.datetime.toDate().getTime() : 0;
+
+    const aLive = a.status === "Live" ? 1 : 0;
+    const bLive = b.status === "Live" ? 1 : 0;
+
+    const aUpcoming = aTime > now.getTime() ? 1 : 0;
+    const bUpcoming = bTime > now.getTime() ? 1 : 0;
+
+    // Live first
+    if (aLive !== bLive) return bLive - aLive;
+
+    // Upcoming next, sort ascending by date
+    if (aUpcoming && bUpcoming) return aTime - bTime;
+
+    // Past games last, sort descending by date
+    if (!aUpcoming && !aLive && !bUpcoming && !bLive) return bTime - aTime;
+
+    // Otherwise, keep current order
+    return 0;
+  });
+
+  console.log("Sorted games:", allGames); // debug
 
   populateSportDropdown();
   populateTeamDropdown();
   renderGames();
 });
+
 
 
 });
