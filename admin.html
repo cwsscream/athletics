@@ -77,17 +77,8 @@
 
   <!-- Firebase SDK -->
   <script type="module">
-    let MOBILE_ADMIN_LOGGED_IN = false;
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  onAuthStateChanged,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
+    const mobileSportFilter = document.getElementById("mobile-sport-filter");
+const mobileTeamFilter = document.getElementById("mobile-team-filter");
 
 if (mobileSportFilter) {
   mobileSportFilter.addEventListener("change", () => {
@@ -107,6 +98,15 @@ if (mobileTeamFilter) {
     import { getFirestore, collection, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js";
     import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
     let ALL_GAMES = [];
+const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+const loginScreenWrapper = document.getElementById("login-screen-wrapper");
+const mobileLogin = document.getElementById("mobile-login");
+
+if (isMobile) {
+  // Hide normal login, show mobile login
+  loginScreenWrapper.classList.add("hidden");
+  mobileLogin.classList.remove("hidden");
+}
 
     const firebaseConfig = {
       apiKey: "AIzaSyCXzyNOFs1QWwO77IvS_xAK9D4mDJ93gpM",
@@ -213,21 +213,17 @@ if (isMobile) {
   const adminPanel = document.getElementById("admin-panel");
 
   // ✅ If mobile login flag is set, skip Firebase auth hiding
-onAuthStateChanged(auth, (user) => {
-  const loginScreen = document.getElementById("login-screen-wrapper");
-  const adminPanel = document.getElementById("admin-panel");
-
   if (MOBILE_ADMIN_LOGGED_IN) {
     loginScreen.classList.add("hidden");
     adminPanel.classList.remove("hidden");
-    renderGames();
+    renderGames();  // make sure games still render
     return;
   }
 
   if (user && ADMIN_EMAILS.includes(user.email)) {
     loginScreen.classList.add("hidden");
     adminPanel.classList.remove("hidden");
-    initAdminPanel();
+    initAdminPanel(); // 🔹 call init function here
   } else {
     loginScreen.classList.remove("hidden");
     adminPanel.classList.add("hidden");
@@ -235,6 +231,7 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
+import { getRedirectResult } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
 
     // Firestore game management
     const PERIOD_OPTIONS = {
@@ -247,8 +244,6 @@ onAuthStateChanged(auth, (user) => {
 
     window.addEventListener('DOMContentLoaded', () => {
       const container = document.getElementById('games-container');
-          const mobileSportFilter = document.getElementById("mobile-sport-filter");
-const mobileTeamFilter = document.getElementById("mobile-team-filter");
 
       onSnapshot(collection(db, "games"), snapshot => {
         ALL_GAMES = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -451,6 +446,7 @@ if (teamDropdown) {
     renderGames();
   });
 }
+let MOBILE_ADMIN_LOGGED_IN = false;
 
 // MOBILE LOGIN (dummy)
 const mobileLoginBtn = document.getElementById("mobile-login-btn");
@@ -494,23 +490,6 @@ function initAdminPanel() {
 
   // Any other init code you already have for the panel can go here
 }
-// ----- MOBILE VS DESKTOP LOGIN VISIBILITY -----
-window.addEventListener("DOMContentLoaded", () => {
-  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-
-  const loginWrapper = document.getElementById("login-screen-wrapper");
-  const mobileLogin = document.getElementById("mobile-login");
-  const adminPanel = document.getElementById("admin-panel");
-
-  if (isMobile) {
-    loginWrapper.classList.add("hidden");
-    mobileLogin.classList.remove("hidden");
-    adminPanel.classList.add("hidden");
-  } else {
-    mobileLogin.classList.add("hidden");
-    loginWrapper.classList.remove("hidden");
-  }
-});
 
   </script>
 </head>
