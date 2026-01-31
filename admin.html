@@ -72,15 +72,11 @@
   color: white;
   font-weight: 600;
 }
-.hidden {
-  display: none !important;
-}
 
   </style>
 
   <!-- Firebase SDK -->
   <script type="module">
-    
     const mobileSportFilter = document.getElementById("mobile-sport-filter");
 const mobileTeamFilter = document.getElementById("mobile-team-filter");
 
@@ -102,9 +98,14 @@ if (mobileTeamFilter) {
     import { getFirestore, collection, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js";
     import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
     let ALL_GAMES = [];
-    function showApp() {
-  document.getElementById("login-screen-wrapper")?.classList.add("hidden");
-  document.getElementById("app-root")?.classList.remove("hidden");
+const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+const loginScreenWrapper = document.getElementById("login-screen-wrapper");
+const mobileLogin = document.getElementById("mobile-login");
+
+if (isMobile) {
+  // Hide normal login, show mobile login
+  loginScreenWrapper.classList.add("hidden");
+  mobileLogin.classList.remove("hidden");
 }
 
     const firebaseConfig = {
@@ -121,24 +122,18 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-// Handle mobile redirect result
+// Handle Google redirect result (for mobile)
 getRedirectResult(auth)
   .then(async (result) => {
-    if (!result) return; // no redirect happened
-
-    const user = result.user;
-    const error = document.getElementById("login-error");
-
-    if (!ADMIN_EMAILS.includes(user.email)) {
-      await signOut(auth);
-      error.textContent = "Unauthorized: You do not have access";
-      error.classList.remove("hidden");
-      return;
+    if (result) {
+      const user = result.user;
+      const error = document.getElementById("login-error");
+      if (!ADMIN_EMAILS.includes(user.email)) {
+        await signOut(auth);
+        error.textContent = "Unauthorized: You do not have access";
+        error.classList.remove("hidden");
+      }
     }
-
-    error.classList.add("hidden");
-    showApp(); // <-- show the admin panel
-    initAdminPanel(); // <-- initialize admin panel
   })
   .catch((err) => {
     console.error(err);
@@ -146,7 +141,8 @@ getRedirectResult(auth)
     error.textContent = "Google login failed";
     error.classList.remove("hidden");
   });
-    
+
+
     // Only these emails can access admin panel
     const ADMIN_EMAILS = ["rwang@commschool.org",
       "asloan@commschool.org",
@@ -156,7 +152,7 @@ getRedirectResult(auth)
     ];
 
     // Firebase Auth functions
-window.login = async () => {
+ window.login = async () => {
   const email = document.getElementById("username").value;
   const password = document.getElementById("password").value;
   const error = document.getElementById("login-error");
@@ -166,30 +162,28 @@ window.login = async () => {
     const user = userCredential.user;
 
     if (!ADMIN_EMAILS.includes(user.email)) {
-      await signOut(auth);
+      await signOut(auth); // log out unauthorized user
       error.textContent = "Unauthorized: You do not have access";
       error.classList.remove("hidden");
       return;
     }
 
-    error.classList.add("hidden");
-    showApp();       // <-- show admin panel
-    initAdminPanel(); // <-- initialize games + filters
+    error.classList.add("hidden"); // authorized
   } catch {
     error.textContent = "Invalid email or password";
     error.classList.remove("hidden");
   }
 };
-    
-// Google login for desktop + mobile
 window.googleLogin = () => {
   const error = document.getElementById("login-error");
   const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
-  if (isMobile) {
-    signInWithRedirect(auth, googleProvider); // mobile redirect
-    return;
-  }
+if (isMobile) {
+  signInWithRedirect(auth, googleProvider); // synchronous
+  return;
+}
+
+
   // Desktop popup
   signInWithPopup(auth, googleProvider)
     .then(async (result) => {
@@ -201,8 +195,6 @@ window.googleLogin = () => {
         return;
       }
       error.classList.add("hidden");
-      showApp(); // <-- show the admin panel
-      initAdminPanel(); // <-- initialize admin panel
     })
     .catch((err) => {
       console.error(err);
@@ -216,18 +208,30 @@ window.googleLogin = () => {
     }
 
     // Show admin panel only for authorized users
-onAuthStateChanged(auth, (user) => {
-  if (!user) return;
+    onAuthStateChanged(auth, (user) => {
+  const loginScreen = document.getElementById("login-screen");
+  const adminPanel = document.getElementById("admin-panel");
 
-  if (!ADMIN_EMAILS.includes(user.email)) {
-    alert("Unauthorized");
-    signOut(auth);
+  // ✅ If mobile login flag is set, skip Firebase auth hiding
+  if (MOBILE_ADMIN_LOGGED_IN) {
+    loginScreen.classList.add("hidden");
+    adminPanel.classList.remove("hidden");
+    renderGames();  // make sure games still render
     return;
   }
 
-  showApp();
-  initAdminPanel();
+  if (user && ADMIN_EMAILS.includes(user.email)) {
+    loginScreen.classList.add("hidden");
+    adminPanel.classList.remove("hidden");
+    initAdminPanel(); // 🔹 call init function here
+  } else {
+    loginScreen.classList.remove("hidden");
+    adminPanel.classList.add("hidden");
+    if (user) signOut(auth);
+  }
 });
+
+import { getRedirectResult } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
 
     // Firestore game management
     const PERIOD_OPTIONS = {
@@ -442,6 +446,36 @@ if (teamDropdown) {
     renderGames();
   });
 }
+let MOBILE_ADMIN_LOGGED_IN = false;
+
+// MOBILE LOGIN (dummy)
+const mobileLoginBtn = document.getElementById("mobile-login-btn");
+if (mobileLoginBtn) {
+  mobileLoginBtn.addEventListener("click", () => {
+    const user = document.getElementById("mobile-username").value.trim();
+    const pass = document.getElementById("mobile-password").value.trim();
+    const error = document.getElementById("mobile-login-error");
+
+    if (user === "mobile" && pass === "cwsscream") {
+      MOBILE_ADMIN_LOGGED_IN = true;  // ✅ mark mobile login as valid
+
+      // Hide mobile login screen
+      document.getElementById("mobile-login").classList.add("hidden");
+      
+      // Show admin panel
+      document.getElementById("admin-panel").classList.remove("hidden");
+
+      // Render games
+      renderGames();
+
+      error.classList.add("hidden");
+    } else {
+      error.textContent = "Invalid username or password";
+      error.classList.remove("hidden");
+    }
+  });
+}
+
 
 function initAdminPanel() {
   // Show filters, set defaults
@@ -459,8 +493,17 @@ function initAdminPanel() {
 
   </script>
 </head>
-<body>
 <div class="min-h-screen flex flex-col">
+<!-- MOBILE LOGIN (only shows on phones) -->
+<div id="mobile-login" class="hidden min-h-screen flex items-center justify-center bg-neutral-900 p-6">
+  <div class="w-full max-w-sm bg-neutral-900 p-6 rounded-2xl border border-neutral-700">
+    <h1 class="text-2xl sm:text-3xl font-bold text-red-600 mb-5 text-center">Mobile Admin Login</h1>
+    <input id="mobile-username" type="text" placeholder="Username" class="p-2 rounded mb-2 w-full bg-neutral-800 text-white border border-neutral-600">
+    <input id="mobile-password" type="password" placeholder="Password" class="p-2 rounded mb-2 w-full bg-neutral-800 text-white border border-neutral-600">
+    <button id="mobile-login-btn" class="btn w-full">Login</button>
+    <p id="mobile-login-error" class="text-red-400 text-sm hidden mt-2 text-center">Invalid login</p>
+  </div>
+</div>
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen-wrapper" class="flex-1 flex items-center justify-center">
@@ -488,7 +531,7 @@ function initAdminPanel() {
 </div>
 
 <!-- ADMIN PANEL -->
-<div id="app-root" class="hidden min-h-screen flex flex-col w-full">
+<div id="admin-panel" class="hidden min-h-screen flex flex-col w-full">
 
 <!-- Navbar (same as home page) -->
 <nav class="navbar-bg text-white sticky top-0 z-50 border-b border-neutral-800">
@@ -676,6 +719,6 @@ function initAdminPanel() {
     <div id="games-container" class="grid gap-6"></div>
   </main>
 </div>
-</div>
+
 </body>
 </html>
