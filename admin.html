@@ -72,11 +72,15 @@
   color: white;
   font-weight: 600;
 }
+.hidden {
+  display: none !important;
+}
 
   </style>
 
   <!-- Firebase SDK -->
   <script type="module">
+    
     const mobileSportFilter = document.getElementById("mobile-sport-filter");
 const mobileTeamFilter = document.getElementById("mobile-team-filter");
 
@@ -98,14 +102,9 @@ if (mobileTeamFilter) {
     import { getFirestore, collection, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js";
     import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
     let ALL_GAMES = [];
-const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-const loginScreenWrapper = document.getElementById("login-screen-wrapper");
-const mobileLogin = document.getElementById("mobile-login");
-
-if (isMobile) {
-  // Hide normal login, show mobile login
-  loginScreenWrapper.classList.add("hidden");
-  mobileLogin.classList.remove("hidden");
+    function showApp() {
+  document.getElementById("login-screen-wrapper")?.classList.add("hidden");
+  document.getElementById("app-root")?.classList.remove("hidden");
 }
 
     const firebaseConfig = {
@@ -208,30 +207,18 @@ if (isMobile) {
     }
 
     // Show admin panel only for authorized users
-    onAuthStateChanged(auth, (user) => {
-  const loginScreen = document.getElementById("login-screen");
-  const adminPanel = document.getElementById("admin-panel");
+onAuthStateChanged(auth, (user) => {
+  if (!user) return;
 
-  // ✅ If mobile login flag is set, skip Firebase auth hiding
-  if (MOBILE_ADMIN_LOGGED_IN) {
-    loginScreen.classList.add("hidden");
-    adminPanel.classList.remove("hidden");
-    renderGames();  // make sure games still render
+  if (!ADMIN_EMAILS.includes(user.email)) {
+    alert("Unauthorized");
+    signOut(auth);
     return;
   }
 
-  if (user && ADMIN_EMAILS.includes(user.email)) {
-    loginScreen.classList.add("hidden");
-    adminPanel.classList.remove("hidden");
-    initAdminPanel(); // 🔹 call init function here
-  } else {
-    loginScreen.classList.remove("hidden");
-    adminPanel.classList.add("hidden");
-    if (user) signOut(auth);
-  }
+  showApp();
+  initAdminPanel();
 });
-
-import { getRedirectResult } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
 
     // Firestore game management
     const PERIOD_OPTIONS = {
@@ -446,36 +433,6 @@ if (teamDropdown) {
     renderGames();
   });
 }
-let MOBILE_ADMIN_LOGGED_IN = false;
-
-// MOBILE LOGIN (dummy)
-const mobileLoginBtn = document.getElementById("mobile-login-btn");
-if (mobileLoginBtn) {
-  mobileLoginBtn.addEventListener("click", () => {
-    const user = document.getElementById("mobile-username").value.trim();
-    const pass = document.getElementById("mobile-password").value.trim();
-    const error = document.getElementById("mobile-login-error");
-
-    if (user === "mobile" && pass === "cwsscream") {
-      MOBILE_ADMIN_LOGGED_IN = true;  // ✅ mark mobile login as valid
-
-      // Hide mobile login screen
-      document.getElementById("mobile-login").classList.add("hidden");
-      
-      // Show admin panel
-      document.getElementById("admin-panel").classList.remove("hidden");
-
-      // Render games
-      renderGames();
-
-      error.classList.add("hidden");
-    } else {
-      error.textContent = "Invalid username or password";
-      error.classList.remove("hidden");
-    }
-  });
-}
-
 
 function initAdminPanel() {
   // Show filters, set defaults
@@ -493,17 +450,8 @@ function initAdminPanel() {
 
   </script>
 </head>
+<body>
 <div class="min-h-screen flex flex-col">
-<!-- MOBILE LOGIN (only shows on phones) -->
-<div id="mobile-login" class="hidden min-h-screen flex items-center justify-center bg-neutral-900 p-6">
-  <div class="w-full max-w-sm bg-neutral-900 p-6 rounded-2xl border border-neutral-700">
-    <h1 class="text-2xl sm:text-3xl font-bold text-red-600 mb-5 text-center">Mobile Admin Login</h1>
-    <input id="mobile-username" type="text" placeholder="Username" class="p-2 rounded mb-2 w-full bg-neutral-800 text-white border border-neutral-600">
-    <input id="mobile-password" type="password" placeholder="Password" class="p-2 rounded mb-2 w-full bg-neutral-800 text-white border border-neutral-600">
-    <button id="mobile-login-btn" class="btn w-full">Login</button>
-    <p id="mobile-login-error" class="text-red-400 text-sm hidden mt-2 text-center">Invalid login</p>
-  </div>
-</div>
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen-wrapper" class="flex-1 flex items-center justify-center">
@@ -531,7 +479,7 @@ function initAdminPanel() {
 </div>
 
 <!-- ADMIN PANEL -->
-<div id="admin-panel" class="hidden min-h-screen flex flex-col w-full">
+<div id="app-root" class="hidden min-h-screen flex flex-col w-full">
 
 <!-- Navbar (same as home page) -->
 <nav class="navbar-bg text-white sticky top-0 z-50 border-b border-neutral-800">
@@ -719,6 +667,6 @@ function initAdminPanel() {
     <div id="games-container" class="grid gap-6"></div>
   </main>
 </div>
-
+</div>
 </body>
 </html>
