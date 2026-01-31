@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/icons/cws-logo-red.png">
+<title>Boys' JV Basketball | Commonwealth Athletics</title>
+
+<!-- Tailwind CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  body { display: flex; flex-direction: column; }
+  main { flex: 1; }
+
+  /* Game cards */
+  a.game-card {
+    background-color: #111111;
+    border: 1px solid #333333;
+    border-radius: 24px;
+    padding: 1.5rem;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease-in-out;
+  }
+  a.game-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(220,38,38,0.3);
+    border-color: #dc2626;
+  }
+  .team-name { font-size: 1.25rem; font-weight: 600; }
+  /* Default score size for big screens */
+.score {
+  font-size: 2rem; /* keeps your big-screen size */
+  color: #ffffff;
+  font-weight: bold;
+}
+/* Responsive game card grid for screens 500px and below */
+@media (max-width: 500px) {
+  a.game-card .grid {
+    grid-template-columns: 1fr auto 1fr; /* left team, score, right team */
+    gap: 0.5rem; /* smaller gap on mobile */
+  }
+
+  .team-name {
+    font-size: 1rem;             /* smaller font for team names */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;            /* prevents overflow of long names */
+  }
+
+  .score {
+    font-size: 1.25rem;          /* smaller score font */
+    white-space: nowrap;
+  }
+}
+/* For iPhone 15 / smaller phones (~430px CSS width) */
+@media (max-width: 430px) {
+  .score {
+    font-size: 1rem; /* shrink even more for smaller screens */
+  }
+}
+  .game-footer { color: #bbbbbb; font-size: 0.875rem; margin-top: 0.75rem; text-align: center; }
+
+  /* Countdown */
+  .countdown { display: inline-flex; align-items: center; gap: 0.5rem; background: #111; border: 1px solid #333; border-radius: 9999px; padding: 4px 10px; font-size: 0.75rem; color: #e5e5e5; }
+  .est-badge { background: #dc2626; color: white; font-weight: bold; padding: 2px 6px; border-radius: 9999px; font-size: 0.65rem; }
+  .countdown-pulse { animation: pulse 1.5s infinite; }
+  .live-badge { display: inline-block; background-color: #dc2626; color: white; font-weight: bold; padding: 2px 6px; border-radius: 9999px; font-size: 0.75rem; text-transform: uppercase; animation: pulse 1.5s infinite; }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.8); }
+    70% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  }
+
+  /* Navbar background */
+  .navbar-bg { background-image: url("/icons/navbar-bg.jpg"); background-size: cover; background-position: center; background-repeat: no-repeat; }
+  .navbar-overlay { background: rgba(0, 0, 0, 0.75); }
+  .nav-link.active { color: #dc2626; font-weight: 700; }
+  /* Make the Sports button red when a team inside is active */
+.active-dropdown {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+ /* Mobile sports dropdown spacing fix */
+#mobile-menu details > div {
+  margin-top: 0;    /* remove extra top margin */
+  margin-bottom: 0; /* remove extra bottom margin */
+}
+#mobile-menu details > div a,
+#mobile-menu details > div p {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0.25rem;  /* optional: small padding for breathing room */
+  padding-bottom: 0.25rem;
+}
+</style>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js";
+import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCXzyNOFs1QWwO77IvS_xAK9D4mDJ93gpM",
+  authDomain: "commonwealth-scream-sports.firebaseapp.com",
+  projectId: "commonwealth-scream-sports",
+  storageBucket: "commonwealth-scream-sports.firebasestorage.app",
+  messagingSenderId: "743439769141",
+  appId: "1:743439769141:web:98f0dcf12b2ce1b9669b7c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const TIMEZONE = "America/New_York";
+
+/* Countdown formatter */
+function formatCountdown(ms) {
+  if (ms <= 0) return "Starting soon";
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / (3600*24));
+  const hours = Math.floor((totalSeconds % (3600*24))/3600);
+  const minutes = Math.floor((totalSeconds % 3600)/60);
+  let parts = [];
+  if (days>0) parts.push(`${days}d`);
+  if (hours>0||days>0) parts.push(`${hours}h`);
+  parts.push(`${minutes}m`);
+  return parts.join(" ");
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const scheduleContainer = document.getElementById('schedule-container');
+  let allGames = [];
+  const trackerContainer = document.getElementById('win-loss-tracker');
+
+function renderWinLoss(games) {
+  const relevantGames = games.filter(game =>
+    game.sport === "basketball" && 
+    game.team === "boys-jv" && 
+    game.status?.toLowerCase() === "final"
+  );
+
+  let wins = 0;
+  let losses = 0;
+
+  relevantGames.forEach(game => {
+    const home = Number(game.homeScore ?? 0);
+    const away = Number(game.awayScore ?? 0);
+
+    if (home > away) wins++;
+    else if (home < away) losses++;
+    // tied games or 0-0 won't increment either
+  });
+
+  trackerContainer.innerHTML = `
+  <span class="font-bold text-white px-6 py-2 rounded-full bg-neutral-800 text-lg">${wins}W – ${losses}L</span>
+`;
+
+}
+
+  function renderGames() {
+  scheduleContainer.innerHTML = '';
+
+  // 1️⃣ Filter ONLY girls varsity basketball
+  const teamGames = allGames.filter(game =>
+    game.sport === "basketball" &&
+    game.team === "boys-jv"
+  );
+
+  // 2️⃣ Split by status
+  const liveGames = teamGames.filter(g => g.status === "Live");
+  const upcomingGames = teamGames.filter(g => g.status === "Scheduled");
+  const finalGames = teamGames.filter(g => g.status === "Final");
+
+  // 3️⃣ Sort each group
+  upcomingGames.sort((a, b) => {
+    const aTime = a.datetime?.toDate?.() ?? new Date(a.datetime);
+    const bTime = b.datetime?.toDate?.() ?? new Date(b.datetime);
+    return aTime - bTime;
+  });
+
+  finalGames.sort((a, b) => {
+    const aTime = a.datetime?.toDate?.() ?? new Date(a.datetime);
+    const bTime = b.datetime?.toDate?.() ?? new Date(b.datetime);
+    return bTime - aTime;
+  });
+
+  // 4️⃣ Combine in correct order
+  const sortedGames = [
+    ...liveGames,
+    ...upcomingGames,
+    ...finalGames
+  ];
+
+  // 5️⃣ Render
+  sortedGames.forEach(game => {
+    let gameTime = game.datetime?.toDate
+      ? game.datetime.toDate()
+      : new Date(game.datetime);
+
+    const estGameTime = new Date(
+      gameTime.toLocaleString("en-US", { timeZone: TIMEZONE })
+    );
+
+    const isLive = game.status === "Live";
+    const isFinal = game.status === "Final";
+    const upcoming = game.status === "Scheduled";
+
+    const card = document.createElement('a');
+    card.href = game.livestreamUrl || "#";
+    card.className = 'game-card mb-6 text-white';
+
+    card.innerHTML = `
+      <div class="flex justify-between items-center mb-4">
+        <span class="text-gray-400 text-sm">${game.sport.toUpperCase()}</span>
+        ${isLive ? '<span class="live-badge countdown-pulse">LIVE</span>' : ''}
+        ${isFinal ? '<span class="text-gray-400 text-sm font-bold">FINAL</span>' : ''}
+      </div>
+
+      <div class="grid grid-cols-3 items-center">
+        <div class="text-left font-semibold text-base sm:text-lg truncate">
+          ${game.away}
+        </div>
+
+        <div class="text-center score">
+          ${isLive || isFinal
+            ? `${game.awayScore} – ${game.homeScore}`
+            : 'vs'}
+        </div>
+
+        <div class="text-right font-semibold text-base sm:text-lg truncate">
+          ${game.home}
+        </div>
+      </div>
+
+      <div class="game-footer">
+        ${isLive ? `
+          <span class="font-semibold text-red-500">${game.periodLabel}</span>
+        ` : upcoming ? `
+          <div class="flex flex-col items-center gap-2">
+            <div>
+              ${estGameTime.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric"
+              })} •
+              ${estGameTime.toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit"
+              })}
+            </div>
+            <div class="countdown countdown-pulse" data-time="${estGameTime.getTime()}">
+              <span class="est-badge">EST</span>
+              <span class="countdown-text">Loading…</span>
+            </div>
+          </div>
+        ` : `
+          <div>
+            ${estGameTime.toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric"
+            })} •
+            ${estGameTime.toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit"
+            })}
+          </div>
+        `}
+      </div>
+    `;
+
+    scheduleContainer.appendChild(card);
+  });
+}
+
+  function updateCountdowns() {
+    document.querySelectorAll('.countdown').forEach(cd=>{
+      const target = parseInt(cd.getAttribute('data-time'),10);
+      const textSpan = cd.querySelector('.countdown-text');
+      textSpan.textContent = formatCountdown(target-Date.now());
+    });
+  }
+  setInterval(updateCountdowns,1000);
+
+  onSnapshot(collection(db,"games"),snapshot=>{
+    allGames=snapshot.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>((a.datetime?.toDate?.()?.getTime()||0)-(b.datetime?.toDate?.()?.getTime()||0)));
+    console.log("ALL GAMES FROM FIRESTORE:", allGames); 
+    renderGames(); 
+    renderWinLoss(allGames);
+    updateCountdowns();
+  });
+});
+
+</script>
+</head>
+
+<body>
+
+<!-- Navbar (exact copy from schedule/index.html) -->
+<nav class="navbar-bg text-white sticky top-0 z-50 border-b border-neutral-800">
+  <div class="navbar-overlay">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="flex justify-between h-16 items-center">
+
+        <!-- Logo + Text -->
+        <a href="/" class="flex items-center gap-2">
+          <img src="/icons/cws-logo-red.png" alt="Logo" class="h-10 w-10">
+          <span class="font-extrabold text-red-600 text-xl sm:text-2xl md:text-3xl">
+            Commonwealth Athletics
+          </span>
+        </a>
+
+        <!-- Desktop Menu -->
+        <div class="hidden md:flex space-x-6 items-center">
+          <a href="/" class="hover:text-red-500">Home</a>
+
+          <!-- Sports Dropdown -->
+          <div class="relative">
+            <button id="sports-btn" class="hover:text-red-500 font-semibold flex items-center gap-1">
+              Sports <span id="sports-arrow" class="transition-transform duration-200">▾</span>
+            </button>
+            <div id="sports-dropdown" class="absolute mt-3 bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl w-56 hidden z-50">
+
+  <!-- Basketball -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Basketball</div>
+    <a href="/sports/basketball/boys-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys Varsity</a>
+    <a href="/sports/basketball/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+    <a href="/sports/basketball/boys-jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys JV</a>
+  </div>
+
+  <!-- Soccer -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Soccer</div>
+    <a href="/sports/soccer/boys-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys Varsity</a>
+    <a href="/sports/soccer/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+    <a href="/sports/soccer/boys-jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Boys JV</a>
+  </div>
+
+  <!-- Fencing -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Fencing</div>
+    <a href="/sports/fencing/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+  </div>
+
+  <!-- Cross Country -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Cross Country</div>
+    <a href="/sports/cross-country/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+  </div>
+
+  <!-- Volleyball -->
+  <div class="border-b border-neutral-700">
+    <div class="px-4 py-2 font-bold text-gray-300">Volleyball</div>
+    <a href="/sports/volleyball/girls-varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Girls Varsity</a>
+  </div>
+
+  <!-- Ultimate Frisbee -->
+  <div>
+    <div class="px-4 py-2 font-bold text-gray-300">Ultimate Frisbee</div>
+    <a href="/sports/ultimate-frisbee/varsity.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">Varsity</a>
+    <a href="/sports/ultimate-frisbee/jv.html" class="block px-6 py-1.5 hover:bg-red-600 hover:text-white transition">JV</a>
+  </div>
+
+</div>
+
+          </div>
+
+          <a href="/schedule.html" class="nav-link hover:text-red-500">Schedule</a>
+          <a href="/admin.html" class="hover:text-red-500">Admin</a>
+        </div>
+
+        <!-- Mobile Hamburger -->
+        <button id="mobile-menu-btn" class="md:hidden text-white focus:outline-none">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none"
+               viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div id="mobile-menu" class="hidden md:hidden bg-black border-b border-neutral-800">
+  <div class="px-6 py-4 flex flex-col space-y-4 text-lg">
+    <a href="/" class="nav-link block hover:text-red-500">Home</a>
+
+    <details class="group">
+      <summary class="cursor-pointer hover:text-red-500 flex justify-between items-center">
+        Sports <span class="transition-transform duration-200 group-open:rotate-180">▼</span>
+      </summary>
+      <div class="ml-4 mt-2 space-y-2 text-sm text-gray-300">
+        <p class="font-bold">Basketball</p>
+        <a href="/sports/basketball/boys-varsity.html" class="block">Boys Varsity</a>
+        <a href="/sports/basketball/girls-varsity.html" class="block">Girls Varsity</a>
+        <a href="/sports/basketball/boys-jv.html" class="block">Boys JV</a>
+
+        <p class="font-bold mt-3">Soccer</p>
+        <a href="/sports/soccer/boys-varsity.html" class="block">Boys Varsity</a>
+        <a href="/sports/soccer/girls-varsity.html" class="block">Girls Varsity</a>
+        <a href="/sports/soccer/boys-jv.html" class="block">Boys JV</a>
+
+        <p class="font-bold mt-3">Fencing</p>
+        <a href="/sports/fencing/varsity.html" class="block">Varsity</a>
+
+        <p class="font-bold mt-3">Volleyball</p>
+        <a href="/sports/volleyball/girls-varsity.html" class="block">Girls Varsity</a>
+      </div>
+    </details>
+
+    <!-- Now this link will naturally get spacing from the flex-col space-y-4 -->
+    <a href="/schedule.html" class="block nav-link hover:text-red-500">Schedule</a>
+    <a href="/admin.html" class="block nav-link hover:text-red-500">Admin</a>
+  </div>
+</div>
+
+<header class="relative h-[240px] sm:h-[280px] md:min-h-[280px] border-b border-neutral-800 bg-cover bg-center bg-no-repeat" style="background-image: url('/icons/bjv-bball.jpg');">
+  
+  <!-- Overlay -->
+  <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-black/70 to-black/90"></div>
+
+  <!-- Text Content -->
+  <div class="relative z-10 max-w-6xl mx-auto px-4 h-full flex flex-col justify-center items-center text-center">
+    <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white">
+      Boys' JV Basketball
+    </h1>
+    <p class="mt-4 text-lg sm:text-xl md:text-2xl text-gray-200">
+      2025-26 Season
+    </p>
+  </div>
+</header>
+
+<section class="max-w-6xl mx-auto mt-6 px-4 text-center">
+  <h2 class="text-2xl font-bold text-white mb-4">Season Record</h2>
+  <div id="win-loss-tracker" class="flex justify-center flex-wrap gap-2">
+    <!-- Win/Loss badges will be inserted here dynamically -->
+  </div>
+</section>
+
+<section class="max-w-6xl mx-auto mt-4 px-4 text-center"> <!-- Coaches & Captains -->
+  <h2 class="text-3xl md:text-4xl font-bold text-red-600 mb-6">Coaches & Captains</h2>
+
+  <div class="flex flex-wrap justify-center gap-6">
+    <!-- Example person -->
+    <div class="flex flex-col items-center w-36">
+      <img src="/icons/chef-dethie.png" alt="Coach Name" class="w-28 h-28 rounded-full object-cover mb-3">
+      <p class="font-semibold text-white text-lg">Dethie Faye</p>
+      <p class="text-gray-400 text-base">Head Coach</p>
+    </div>
+    <div class="flex flex-col items-center w-36">
+      <img src="/icons/henry-booth.jpeg" alt="Captain Name" class="w-28 h-28 rounded-full object-cover mb-3">
+      <p class="font-semibold text-white text-lg">Henry Booth</p>
+      <p class="text-gray-400 text-base">Head Coach · ’25</p>
+    </div>
+    <div class="flex flex-col items-center w-36">
+      <img src="/icons/aiden.png" alt="Captain Name" class="w-28 h-28 rounded-full object-cover mb-3">
+      <p class="font-semibold text-white text-lg">Aiden Mendes</p>
+      <p class="text-gray-400 text-base">Captain · ’27</p>
+    </div>
+    <div class="flex flex-col items-center w-36">
+      <img src="/icons/arihaan.png" alt="Captain Name" class="w-28 h-28 rounded-full object-cover mb-3">
+      <p class="font-semibold text-white text-lg">Arihaan Haran</p>
+      <p class="text-gray-400 text-base">Captain · ’29</p>
+    </div>
+    <!-- Add more people as needed -->
+  </div>
+</section>
+
+<!-- Roster Button + List -->
+<section class="max-w-6xl mx-auto mt-6 px-4 text-center mb-2"> <!-- tightened spacing -->
+  <button id="toggle-roster" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-full mb-1 transition">
+    Show Roster
+  </button>
+
+  <div id="roster-list" class="hidden max-w-4xl mx-auto text-left bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-white">
+    <table class="w-full table-auto text-sm md:text-base">
+      <thead>
+        <tr class="border-b border-neutral-700">
+          <th class="px-4 py-2 text-left">#</th>
+          <th class="px-4 py-2 text-left">Name</th>
+          <th class="px-4 py-2 text-left">Grad Year</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">4</td>
+          <td class="px-4 py-2">Arihaan Haran</td>
+          <td class="px-4 py-2">2029</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">6</td>
+          <td class="px-4 py-2">Sebastian Shoemaker</td>
+          <td class="px-4 py-2">2029</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">7</td>
+          <td class="px-4 py-2">Andy Ji</td>
+          <td class="px-4 py-2">2028</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">8</td>
+          <td class="px-4 py-2">Kevin Si</td>
+          <td class="px-4 py-2">2029</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">9</td>
+          <td class="px-4 py-2">Anand Mani</td>
+          <td class="px-4 py-2">2029</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">10</td>
+          <td class="px-4 py-2">Sreekar Inturi</td>
+          <td class="px-4 py-2">2028</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">11</td>
+          <td class="px-4 py-2">Raphael Bockman</td>
+          <td class="px-4 py-2">2028</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">13</td>
+          <td class="px-4 py-2">Julian Bernhoft</td>
+          <td class="px-4 py-2">2029</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">14</td>
+          <td class="px-4 py-2">Ryan Sun</td>
+          <td class="px-4 py-2">2029</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">16</td>
+          <td class="px-4 py-2">Edward Li</td>
+          <td class="px-4 py-2">2028</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">17</td>
+          <td class="px-4 py-2">Owen Kelley</td>
+          <td class="px-4 py-2">2028</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">18</td>
+          <td class="px-4 py-2">Cole Miranda</td>
+          <td class="px-4 py-2">2027</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">19</td>
+          <td class="px-4 py-2">Roman Karezin</td>
+          <td class="px-4 py-2">2029</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">21</td>
+          <td class="px-4 py-2">Dylan Mahadevia</td>
+          <td class="px-4 py-2">2029</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">22</td>
+          <td class="px-4 py-2">Sohan Shah</td>
+          <td class="px-4 py-2">2029</td>
+        </tr>
+        <tr class="border-b border-neutral-700">
+          <td class="px-4 py-2">23</td>
+          <td class="px-4 py-2">Aiden Mendes</td>
+          <td class="px-4 py-2">2027</td>
+        </tr>
+        <!-- Add more players here -->
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  const toggleRosterBtn = document.getElementById('toggle-roster');
+  const rosterList = document.getElementById('roster-list');
+
+  toggleRosterBtn.addEventListener('click', () => {
+    rosterList.classList.toggle('hidden');
+    toggleRosterBtn.textContent = rosterList.classList.contains('hidden') ? "Show Roster" : "Hide Roster";
+  });
+</script>
+
+<main class="flex-1">
+  <section class="max-w-6xl mx-auto mt-6 px-4 text-center">
+    <h2 class="text-3xl md:text-4xl font-bold text-red-600 mb-6">Schedule</h2>
+    <div id="schedule-container" class="max-w-4xl mx-auto grid gap-6">
+      <!-- Game cards will be injected here dynamically -->
+    </div>
+  </section>
+</main>
+<footer class="bg-black border-t border-neutral-800">
+  <div class="max-w-6xl mx-auto px-4 py-6 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div class="flex gap-4">
+      <a href="https://instagram.com/cwssports" target="_blank" rel="noopener">
+        <img src="/icons/instagram-white.png" alt="Instagram" class="h-6 w-6 hover:opacity-80 transition">
+      </a>
+      <a href="https://youtube.com/yourchannel" target="_blank" rel="noopener">
+        <img src="/icons/youtube-white.png" alt="YouTube" class="h-6 w-6 hover:opacity-80 transition">
+      </a>
+    </div>
+
+    <p class="text-gray-400 text-sm text-center md:text-right">
+Powered by SCREAM Club
+    </p>
+  </div>
+</footer>
+
+<script>
+// --- Desktop Sports Dropdown ---
+const sportsBtn = document.getElementById('sports-btn');
+const sportsDropdown = document.getElementById('sports-dropdown');
+const sportsArrow = document.getElementById('sports-arrow');
+
+// Click toggle for desktop Sports dropdown
+sportsBtn.addEventListener('click', (e) => {
+  e.stopPropagation(); // Prevent closing immediately
+  sportsDropdown.classList.toggle('hidden');
+  sportsArrow.classList.toggle('rotate-180');
+});
+
+// Close dropdown if clicking outside
+window.addEventListener('click', (e) => {
+  if (!sportsBtn.contains(e.target) && !sportsDropdown.contains(e.target)) {
+    sportsDropdown.classList.add('hidden');
+    sportsArrow.classList.remove('rotate-180');
+  }
+});
+
+
+// --- Mobile Hamburger ---
+const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+const mobileMenu = document.getElementById('mobile-menu');
+
+mobileMenuBtn.addEventListener('click', () => {
+  mobileMenu.classList.toggle('hidden');
+});
+
+// --- Highlight active nav link ---
+document.querySelectorAll('.nav-link').forEach(link => {
+  const linkPath = new URL(link.href).pathname.replace(/\/$/, "");
+  const currentPath = window.location.pathname.replace(/\/$/, "");
+
+  if (linkPath === currentPath) {
+    link.classList.add('active');
+
+    // Make the parent dropdown button active too (desktop)
+    const parentDropdownBtn = link.closest('#sports-dropdown')?.previousElementSibling;
+if (parentDropdownBtn) parentDropdownBtn.classList.add('active-dropdown');
+
+  }
+});
+
+// --- Optional: Auto-close mobile menu when clicking a link ---
+mobileMenu.querySelectorAll('a').forEach(link => {
+  link.addEventListener('click', () => {
+    mobileMenu.classList.add('hidden');
+  });
+});
+</script>
+
+</body>
+</html>
