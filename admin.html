@@ -507,11 +507,19 @@ function initAdminPanel() {
 
   </script>
 </head>
-<div class="min-h-screen flex flex-col">
-  <div id="mobile-admin-message" class="hidden min-h-screen flex items-center justify-center bg-neutral-900 text-white p-6 text-center">
-  <h1 class="text-3xl font-bold text-red-600">Admin page not available on mobile</h1>
-  <p class="mt-4 text-gray-300">Please use a desktop to access the admin panel.</p>
+<div id="mobile-admin-message" class="hidden min-h-screen flex items-center justify-center bg-neutral-900 text-white px-6 text-center">
+  <div class="max-w-xl">
+    <h1 class="text-4xl font-extrabold text-red-600 mb-6">
+      Admin Page Not Available on Mobile
+    </h1>
+    <p class="text-lg text-gray-300 mb-6">
+      The admin control panel is only accessible on desktop devices. 
+      Please switch to a desktop computer to manage games and scores.
+    </p>
+    <img src="/athletics/icons/cws-logo-red.png" alt="Commonwealth Athletics Logo" class="mx-auto w-24 h-24">
+  </div>
 </div>
+
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen-wrapper" class="flex-1 flex items-center justify-center">
