@@ -78,8 +78,16 @@
   <!-- Firebase SDK -->
   <script type="module">
     let MOBILE_ADMIN_LOGGED_IN = false;
-    const mobileSportFilter = document.getElementById("mobile-sport-filter");
-const mobileTeamFilter = document.getElementById("mobile-team-filter");
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
 
 if (mobileSportFilter) {
   mobileSportFilter.addEventListener("change", () => {
@@ -209,7 +217,6 @@ onAuthStateChanged(auth, (user) => {
   const loginScreen = document.getElementById("login-screen-wrapper");
   const adminPanel = document.getElementById("admin-panel");
 
-  // ✅ MOBILE LOGIN OVERRIDE
   if (MOBILE_ADMIN_LOGGED_IN) {
     loginScreen.classList.add("hidden");
     adminPanel.classList.remove("hidden");
@@ -229,8 +236,6 @@ onAuthStateChanged(auth, (user) => {
 });
 
 
-import { getRedirectResult } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
-
     // Firestore game management
     const PERIOD_OPTIONS = {
       "boys-varsity": ["1st Half", "Halftime", "2nd Half", "Final"],
@@ -242,6 +247,8 @@ import { getRedirectResult } from "https://www.gstatic.com/firebasejs/10.3.1/fir
 
     window.addEventListener('DOMContentLoaded', () => {
       const container = document.getElementById('games-container');
+          const mobileSportFilter = document.getElementById("mobile-sport-filter");
+const mobileTeamFilter = document.getElementById("mobile-team-filter");
 
       onSnapshot(collection(db, "games"), snapshot => {
         ALL_GAMES = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
