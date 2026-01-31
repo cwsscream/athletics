@@ -490,20 +490,7 @@ function initAdminPanel() {
 
   // Any other init code you already have for the panel can go here
 }
-  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
-  if (isMobile) {
-    document.addEventListener("DOMContentLoaded", () => {
-      document.body.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center bg-neutral-900 text-white p-6">
-          <div class="text-center">
-            <h1 class="text-3xl font-bold text-red-600 mb-4">Admin Page Unavailable</h1>
-            <p class="text-lg">The admin panel cannot be accessed on mobile devices. Please use a desktop or laptop.</p>
-          </div>
-        </div>
-      `;
-    });
-  }
   </script>
 </head>
 <div class="min-h-screen flex flex-col">
