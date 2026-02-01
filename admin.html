@@ -112,7 +112,15 @@ if (mobileTeamFilter) {
 }
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js";
+    import {
+  getFirestore,
+  collection,
+  onSnapshot,
+  updateDoc,
+  doc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js";
+
     import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.3.1/firebase-auth.js";
     let ALL_GAMES = [];
 const isMobile = /Mobi|Android/i.test(navigator.userAgent);
@@ -138,6 +146,12 @@ if (isMobile) {
 const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
+    
+async function isAdmin(email) {
+  const adminRef = doc(db, "admins", email);
+  const adminSnap = await getDoc(adminRef);
+  return adminSnap.exists();
+}
 
 // Handle Google redirect result (for mobile)
 getRedirectResult(auth)
@@ -145,7 +159,7 @@ getRedirectResult(auth)
     if (result) {
       const user = result.user;
       const error = document.getElementById("login-error");
-      if (!ADMIN_EMAILS.includes(user.email)) {
+      if (!(await isAdmin(user.email))) {
         await signOut(auth);
         error.textContent = "Unauthorized: You do not have access";
         error.classList.remove("hidden");
@@ -159,15 +173,6 @@ getRedirectResult(auth)
     error.classList.remove("hidden");
   });
 
-
-    // Only these emails can access admin panel
-    const ADMIN_EMAILS = ["rwang@commschool.org",
-      "asloan@commschool.org",
-      "commonwealthscream@gmail.com",
-      "bchen@commschool.org",
-      "andrew305sloan@gmail.com"
-    ];
-
     // Firebase Auth functions
  window.login = async () => {
   const email = document.getElementById("username").value;
@@ -178,7 +183,7 @@ getRedirectResult(auth)
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    if (!ADMIN_EMAILS.includes(user.email)) {
+    if (!(await isAdmin(user.email))) {
       await signOut(auth); // log out unauthorized user
       error.textContent = "Unauthorized: You do not have access";
       error.classList.remove("hidden");
@@ -205,7 +210,7 @@ if (isMobile) {
   signInWithPopup(auth, googleProvider)
     .then(async (result) => {
       const user = result.user;
-      if (!ADMIN_EMAILS.includes(user.email)) {
+      if (!(await isAdmin(user.email))) {
         await signOut(auth);
         error.textContent = "Unauthorized: You do not have access";
         error.classList.remove("hidden");
@@ -225,7 +230,7 @@ if (isMobile) {
     }
 
     // Show admin panel only for authorized users
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
   const loginScreen = document.getElementById("login-screen");
   const adminPanel = document.getElementById("admin-panel");
 
@@ -237,7 +242,7 @@ if (isMobile) {
     return;
   }
 
-  if (user && ADMIN_EMAILS.includes(user.email)) {
+  if (user && await isAdmin(user.email)) {
     loginScreen.classList.add("hidden");
     adminPanel.classList.remove("hidden");
     initAdminPanel(); // 🔹 call init function here
