@@ -508,5 +508,10 @@ document.querySelectorAll(".nav-link").forEach(link => {
     </p>
   </div>
 </footer>
+  <script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/athletics/service-worker.js");
+}
+</script>
 </body>
 </html>
