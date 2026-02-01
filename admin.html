@@ -512,6 +512,17 @@ function initAdminPanel() {
 
   // Any other init code you already have for the panel can go here
 }
+const backBtn = document.getElementById("admin-back-btn");
+
+if (backBtn) {
+  backBtn.addEventListener("click", () => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = "/athletics/";
+    }
+  });
+}
 
   </script>
 </head>
@@ -566,6 +577,14 @@ function initAdminPanel() {
   <div class="navbar-overlay">
     <div class="max-w-6xl mx-auto px-4">
       <div class="flex justify-between h-16 items-center">
+<!-- Back Button (App-safe) -->
+<button
+  id="admin-back-btn"
+  class="mr-3 flex items-center gap-1 text-white hover:text-red-400 md:hidden"
+  aria-label="Go back"
+>
+  ← Back
+</button>
 
         <!-- Logo + Text -->
         <a href="/athletics/" class="flex items-center gap-2">
