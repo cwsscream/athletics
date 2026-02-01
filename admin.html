@@ -738,6 +738,10 @@ function initAdminPanel() {
     <div id="games-container" class="grid gap-6"></div>
   </main>
 </div>
-
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/athletics/service-worker.js");
+}
+</script>
 </body>
 </html>
