@@ -283,24 +283,28 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderGames() {
-    scheduleContainer.innerHTML = '';
-    const now = new Date();
-    const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
-    const todayEnd = new Date(now); todayEnd.setHours(23,59,59,999);
+  scheduleContainer.innerHTML = "";
 
-    allGames.forEach(game => {
-  // Only skip if a specific sport is selected and it doesn't match
-  if (selectedSport !== "" && game.sport !== selectedSport) return;
-  // Only skip if a specific team is selected and it doesn't match
-  if (selectedTeam !== "" && game.team !== selectedTeam) return;
-      let gameTime;
-if (game.datetime && typeof game.datetime.toDate === "function") {
-  gameTime = game.datetime.toDate();
-} else if (game.datetime) {
-  gameTime = new Date(game.datetime); // fallback if it's a string
-} else {
-  console.warn("Skipping game with missing datetime:", game);
-  return; // skip rendering this game
+  const games = allGames
+    .filter(game => {
+      if (selectedSport && game.sport !== selectedSport) return false;
+      if (selectedTeam && game.team !== selectedTeam) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const gA = getGroup(a);
+      const gB = getGroup(b);
+
+      if (gA !== gB) return gA - gB;
+
+      const tA = a.datetime.toDate();
+      const tB = b.datetime.toDate();
+
+      if (gA === 1) return tA - tB; // upcoming
+      return tB - tA; // live or past
+    });
+
+  games.forEach(renderGameCard);
 }
 
       const estGameTime = new Date(gameTime.toLocaleString("en-US",{timeZone: TIMEZONE}));
@@ -417,29 +421,7 @@ onSnapshot(collection(db, "games"), snapshot => {
 
   const now = new Date();
 
-  allGames.sort((a, b) => {
-    const aTime = a.datetime && a.datetime.toDate ? a.datetime.toDate().getTime() : 0;
-    const bTime = b.datetime && b.datetime.toDate ? b.datetime.toDate().getTime() : 0;
-
-    const aLive = a.status === "Live" ? 1 : 0;
-    const bLive = b.status === "Live" ? 1 : 0;
-
-    const aUpcoming = aTime > now.getTime() ? 1 : 0;
-    const bUpcoming = bTime > now.getTime() ? 1 : 0;
-
-    // Live first
-    if (aLive !== bLive) return bLive - aLive;
-
-    // Upcoming next, sort ascending by date
-    if (aUpcoming && bUpcoming) return aTime - bTime;
-
-    // Past games last, sort descending by date
-    if (!aUpcoming && !aLive && !bUpcoming && !bLive) return bTime - aTime;
-
-    // Otherwise, keep current order
-    return 0;
-  });
-
+  
   console.log("Sorted games:", allGames); // debug
 
   populateSportDropdown();
