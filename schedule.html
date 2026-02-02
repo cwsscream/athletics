@@ -418,27 +418,36 @@ onSnapshot(collection(db, "games"), snapshot => {
   const now = new Date();
 
   allGames.sort((a, b) => {
-    const aTime = a.datetime && a.datetime.toDate ? a.datetime.toDate().getTime() : 0;
-    const bTime = b.datetime && b.datetime.toDate ? b.datetime.toDate().getTime() : 0;
+  const now = Date.now();
 
-    const aLive = a.status === "Live" ? 1 : 0;
-    const bLive = b.status === "Live" ? 1 : 0;
+  const aTime = a.datetime?.toDate ? a.datetime.toDate().getTime() : 0;
+  const bTime = b.datetime?.toDate ? b.datetime.toDate().getTime() : 0;
 
-    const aUpcoming = aTime > now.getTime() ? 1 : 0;
-    const bUpcoming = bTime > now.getTime() ? 1 : 0;
+  const aLive = a.status === "Live";
+  const bLive = b.status === "Live";
 
-    // Live first
-    if (aLive !== bLive) return bLive - aLive;
+  const aFinal = a.status === "Final";
+  const bFinal = b.status === "Final";
 
-    // Upcoming next, sort ascending by date
-    if (aUpcoming && bUpcoming) return aTime - bTime;
+  // 1️⃣ LIVE always first
+  if (aLive && !bLive) return -1;
+  if (!aLive && bLive) return 1;
 
-    // Past games last, sort descending by date
-    if (!aUpcoming && !aLive && !bUpcoming && !bLive) return bTime - aTime;
+  // 2️⃣ UPCOMING next (soonest first)
+  const aUpcoming = !aLive && !aFinal && aTime > now;
+  const bUpcoming = !bLive && !bFinal && bTime > now;
 
-    // Otherwise, keep current order
-    return 0;
-  });
+  if (aUpcoming && bUpcoming) return aTime - bTime;
+  if (aUpcoming && !bUpcoming) return -1;
+  if (!aUpcoming && bUpcoming) return 1;
+
+  // 3️⃣ FINALS / PAST last (most recent first)
+  if (aFinal && bFinal) return bTime - aTime;
+  if (aFinal && !bFinal) return 1;
+  if (!aFinal && bFinal) return -1;
+
+  return bTime - aTime;
+});
 
   console.log("Sorted games:", allGames); // debug
 
