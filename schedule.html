@@ -411,6 +411,21 @@ updateCountdowns();
     if (!sportBtn.contains(e.target) && !sportDropdown.contains(e.target)) sportDropdown.classList.add('hidden');
     if (!teamBtn.contains(e.target) && !teamDropdown.contains(e.target)) teamDropdown.classList.add('hidden');
   });
+// ✅ Close filters when user scrolls (mobile fix)
+window.addEventListener('scroll', () => {
+  sportDropdown.classList.add('hidden');
+  teamDropdown.classList.add('hidden');
+});
+
+// ✅ Close filters when user touches elsewhere (mobile fix)
+window.addEventListener('touchstart', (e) => {
+  if (!sportBtn.contains(e.target) && !sportDropdown.contains(e.target)) {
+    sportDropdown.classList.add('hidden');
+  }
+  if (!teamBtn.contains(e.target) && !teamDropdown.contains(e.target)) {
+    teamDropdown.classList.add('hidden');
+  }
+});
 
 onSnapshot(collection(db, "games"), snapshot => {
   allGames = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
